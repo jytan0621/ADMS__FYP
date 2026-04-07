@@ -1,0 +1,123 @@
+/* ================= 1. GENERAL RESET ================= */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Arial, sans-serif;
+}
+
+/* ================= 2. SIDEBAR CONTAINER ================= */
+.sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 250px;
+    height: 100vh;      /* Full viewport height */
+    background-color: #2f2f2f; 
+    color: #fff;
+    padding-top: 60px;  /* Space for Header */
+    z-index: 1000;
+    
+    /* Flexbox Layout: Essential for pinning logout to bottom */
+    display: flex;
+    flex-direction: column; 
+}
+
+/* ================= 3. SCROLLABLE AREA ================= */
+.menu-scroll-area {
+    flex-grow: 1;       /* Takes all available empty space */
+    overflow-y: auto;   /* Scroll internal content */
+    display: flex;
+    flex-direction: column;
+}
+
+/* ================= 4. MAIN MENU BUTTONS (Used for Logout too) ================= */
+.menu-title {
+    display: flex;          /* Aligns text and icon */
+    align-items: center;    /* Vertically center */
+    padding: 15px 20px;     /* Size of the button */
+    width: 100%;            /* Ensure it fills width */
+    
+    color: #e5e5e5;
+    font-weight: 500;
+    font-size: 14px;
+    text-decoration: none;  /* REMOVES UNDERLINE */
+    
+    border-bottom: 1px solid #404040; /* Standard separator */
+    background-color: transparent;
+    transition: background 0.2s ease-in-out;
+}
+
+.menu-title:hover {
+    background-color: #3f3f3f;
+    color: #ffffff;
+    cursor: pointer;
+}
+
+.menu-title.active {
+    background-color: #0b5ea8;
+    color: #fff;
+    border-left: 4px solid #ffffff;
+}
+
+/* ================= 5. SUBMENUS ================= */
+.submenu {
+    background-color: #262626;
+    box-shadow: inset 0 3px 5px rgba(0,0,0,0.2);
+}
+
+.submenu a {
+    display: block;
+    padding: 10px 20px 10px 45px;
+    font-size: 13px;
+    color: #a3a3a3;
+    text-decoration: none;
+    border-bottom: 1px solid #333;
+    transition: color 0.2s, padding-left 0.2s;
+}
+
+.submenu a:hover {
+    color: #ffffff;
+    background-color: #333;
+    padding-left: 48px;
+}
+
+/* ================= 6. LOGOUT PINNED SECTION ================= */
+.logout-section {
+    flex-shrink: 0;             /* Prevents it from disappearing */
+    background-color: #2f2f2f;  /* Match Sidebar color */
+    /* Note: We handle the border on the button itself below */
+}
+
+/* Specific Adjustments for the Logout Button */
+.logout-btn {
+    border-top: 1px solid #555;  /* Separator Line ABOVE logout */
+    border-bottom: none;         /* No line below logout */
+    margin-top: 0;               /* Reset margin */
+}
+
+/* Optional: Make logout red on hover */
+.logout-btn:hover {
+    background-color: #c0392b; 
+    color: white;
+}
+
+/* Icon Sizing */
+.logout-icon {
+    width: 10px;
+    height: 10px;
+    margin-right: 10px;
+    filter: invert(1); /* Makes black SVG white */
+}
+
+/* ================= 7. SCROLLBAR ================= */
+.menu-scroll-area::-webkit-scrollbar {
+    width: 6px;
+}
+.menu-scroll-area::-webkit-scrollbar-track {
+    background: #2f2f2f; 
+}
+.menu-scroll-area::-webkit-scrollbar-thumb {
+    background-color: #555; 
+    border-radius: 3px;
+}
