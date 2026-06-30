@@ -131,6 +131,7 @@
 
     <div class="sidebar-container"><jsp:include page="Sidebar.jsp" /></div>
     <jsp:include page="Headbar.jsp" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <div class="main-content-scrollable">
         <div class="form-card">
             

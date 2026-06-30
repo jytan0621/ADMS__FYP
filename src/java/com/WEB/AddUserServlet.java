@@ -1,3 +1,4 @@
+
 /*
  * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
  * Click nbfs://nbhost/SystemFileSystem/Templates/JSP_Servlet/Servlet.java to edit this template
@@ -30,6 +31,9 @@ public class AddUserServlet extends HttpServlet {
             String role = request.getParameter("role");
             String assignedRegion = request.getParameter("assignedRegion");
 
+            // 🌟 ENCRYPT THE PASSWORD HERE BEFORE SAVING
+            String hashedPassword = BCrypt.hashpw(password, BCrypt.gensalt());
+
             // 2. Prepare Auto-Generated Data
             String status = "Active"; // Default status for new users
             
@@ -41,7 +45,7 @@ public class AddUserServlet extends HttpServlet {
             User newUser = new User();
             newUser.setUserName(username);
             newUser.setEmail(email);
-            newUser.setPassword(password);
+            newUser.setPassword(hashedPassword); // 👈 SAVE HASHED PASSWORD, NOT PLAIN TEXT
             newUser.setRole(role);
             newUser.setAssignedRegion(assignedRegion);
             newUser.setCreatedAt(createdAt);

@@ -53,22 +53,21 @@ public class ChangePasswordServlet extends HttpServlet {
         
         try {
             // STEP A: Verify the Old Password
-            // We use the existing login() method. If it returns a user, the email+oldPassword combo is valid.
             User verifiedUser = userDAO.login(currentUser.getEmail(), oldPassword);
             
             if (verifiedUser != null) {
                 // Old password is correct!
                 
-                // STEP B: Update the Password
-                // Your DAO's passwordUpdate method uses the User object's password field.
-                // So we must update the object in memory first.
-                currentUser.setPassword(newPassword);
+                // 🌟 STEP B: ENCRYPT THE NEW PASSWORD HERE 🌟
+                String hashedNewPassword = BCrypt.hashpw(newPassword, BCrypt.gensalt());
+                
+                // Update the object in memory with the ENCRYPTED password
+                currentUser.setPassword(hashedNewPassword); 
                 
                 // Call the DAO
                 boolean isUpdated = userDAO.passwordUpdate(currentUser);
                 
                 if (isUpdated) {
-                    // Update the session with the new user details so they stay logged in with new info
                     session.setAttribute("currentUser", currentUser);
                     request.setAttribute("message", "Password changed successfully!");
                 } else {
@@ -76,7 +75,6 @@ public class ChangePasswordServlet extends HttpServlet {
                 }
                 
             } else {
-                // login() returned null, meaning Old Password was wrong
                 request.setAttribute("error", "The Current Password you entered is incorrect.");
             }
             

@@ -32,8 +32,6 @@ public class AidRequestDAO {
         "JOIN inventoryitem inv ON list.ItemID = inv.ItemID " +
         "WHERE list.RequestID = ?";
     
-    private static final String SELECT_ALL_REQUESTS = "SELECT * FROM aidrequest";
-    
     private static final String SELECT_ITEM_SUMMARIES = "SELECT list.RequestID, GROUP_CONCAT(DISTINCT inv.I_Name SEPARATOR ', ') AS ItemSummary FROM aidrequestitem list JOIN inventoryitem inv ON list.ItemID = inv.ItemID GROUP BY list.RequestID";
     private static final String SELECT_ALL_USERS = "SELECT UserID, UserName FROM userprofile";
     private static final String DELETE_REQUEST_SQL = "DELETE FROM aidrequest WHERE RequestID = ? AND AR_Status = 'Pending'";
@@ -62,7 +60,7 @@ public class AidRequestDAO {
         }
     }
 
-    // --- NEW METHOD: Used by DashboardServlet to count global statistics ---
+    // --- METHOD: Used by DashboardServlet to count global statistics ---
     public int countRequestsByStatus(String status) {
         int count = 0;
         String sql = "SELECT COUNT(*) AS total FROM aidrequest WHERE AR_Status = ?";

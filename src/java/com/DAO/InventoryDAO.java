@@ -662,7 +662,7 @@ public class InventoryDAO {
 
         String sql = "SELECT b.TentID, COUNT(b.BeneficiaryID) as population, dr.ItemID, i.I_Name, dr.QtyPerPerson, dr.DistType " +
                      "FROM beneficiary b " +
-                     "JOIN distribution_rules dr " +
+                     "JOIN distribution_rules dr ON b.ShelterID = dr.ShelterID " + 
                      "JOIN inventoryitem i ON dr.ItemID = i.ItemID " +
                      "WHERE b.B_status = 'Active' " +
                      "GROUP BY b.TentID, dr.ItemID";

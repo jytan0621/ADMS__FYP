@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.DAO;
 
 import java.sql.*;
@@ -17,7 +13,9 @@ public class BeneficiaryAnalysisDAO {
         try {
             Class.forName("com.mysql.cj.jdbc.Driver");
             return DriverManager.getConnection(jdbcURL, jdbcUserName, jdbcPassword);
-        } catch (Exception e) { throw new RuntimeException("DB Failed"); }
+        } catch (Exception e) { 
+            throw new RuntimeException("DB Failed"); 
+        }
     }
 
     // --- FETCH ALL INDIVIDUALS (Head + Family) ---
@@ -25,27 +23,31 @@ public class BeneficiaryAnalysisDAO {
     public List<Map<String, String>> getAllIndividuals(String shelterID) {
         List<Map<String, String>> people = new ArrayList<>();
         
-        boolean isGlobal = (shelterID == null || "All Regions".equalsIgnoreCase(shelterID) || shelterID.trim().isEmpty());
-        String shelterCondition = isGlobal ? "" : " AND b.ShelterID = ? ";
+        // 1. Sanitize the input to safely pass to the PreparedStatement
+        String safeShelterID = (shelterID == null || shelterID.trim().isEmpty()) ? "All Regions" : shelterID.trim();
         
-        // 1. Beneficiaries (Head of House)
+        // 2. 100% STATIC SQL: Zero string concatenation. 
+        // We use (? = 'All Regions' OR b.ShelterID = ?) to handle global vs specific logic securely inside the PreparedStatement.
         String sqlB = "SELECT b.B_ICNumber AS IC, b.B_OKUStatus AS OKU, b.B_status AS Status, b.DateRegistered " +
                       "FROM beneficiary b " +
                       "LEFT JOIN shelter s ON b.ShelterID = s.ShelterID " +
-                      "WHERE (s.ActivationDate IS NULL OR DATE(b.DateRegistered) >= DATE(s.ActivationDate))" + shelterCondition;
+                      "WHERE (s.ActivationDate IS NULL OR DATE(b.DateRegistered) >= DATE(s.ActivationDate)) " +
+                      "AND (? = 'All Regions' OR b.ShelterID = ?)";
         
-        // 2. Household Members (Linked by BeneficiaryID)
         String sqlH = "SELECT h.H_ICNumber AS IC, h.H_OKUStatus AS OKU, h.H_status AS Status, b.DateRegistered " +
                       "FROM household h " +
                       "JOIN beneficiary b ON h.BeneficiaryID = b.BeneficiaryID " +
                       "LEFT JOIN shelter s ON b.ShelterID = s.ShelterID " +
-                      "WHERE (s.ActivationDate IS NULL OR DATE(b.DateRegistered) >= DATE(s.ActivationDate))" + shelterCondition;
+                      "WHERE (s.ActivationDate IS NULL OR DATE(b.DateRegistered) >= DATE(s.ActivationDate)) " +
+                      "AND (? = 'All Regions' OR b.ShelterID = ?)";
 
         try (Connection conn = getConnection()) {
             
             // Get Heads
             try (PreparedStatement ps = conn.prepareStatement(sqlB)) {
-                if (!isGlobal) ps.setString(1, shelterID.trim());
+                // Bind the safeShelterID to both '?' placeholders
+                ps.setString(1, safeShelterID);
+                ps.setString(2, safeShelterID);
                 
                 try (ResultSet rs = ps.executeQuery()) {
                     while (rs.next()) {
@@ -63,7 +65,9 @@ public class BeneficiaryAnalysisDAO {
             
             // Get Family Members
             try (PreparedStatement ps = conn.prepareStatement(sqlH)) {
-                if (!isGlobal) ps.setString(1, shelterID.trim());
+                // Bind the safeShelterID to both '?' placeholders
+                ps.setString(1, safeShelterID);
+                ps.setString(2, safeShelterID);
                 
                 try (ResultSet rs = ps.executeQuery()) {
                     while (rs.next()) {

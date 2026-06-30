@@ -85,30 +85,50 @@ public class DashboardDAO {
         return list;
     }
 
-    // --- 3. VICTIM REGISTRATION TREND ---
+    // --- 3. VICTIM REGISTRATION TREND (FIXED TO 100% STATIC SQL) ---
     public Map<String, List<Object>> getDailyRegistrationTrend(String shelterFilterID) {
         Map<String, List<Object>> result = new HashMap<>();
         Map<String, Integer> dateCounts = new TreeMap<>(); 
         
-        boolean isGlobal = (shelterFilterID == null || "All".equalsIgnoreCase(shelterFilterID) || shelterFilterID.trim().isEmpty());
-        String filterSql = isGlobal ? "" : " AND b.ShelterID = ? ";
+        // 1. Sanitize the input
+        String safeShelterID = (shelterFilterID == null || shelterFilterID.trim().isEmpty() || "All".equalsIgnoreCase(shelterFilterID)) ? "All Regions" : shelterFilterID.trim();
+
+        // 2. 100% STATIC SQL strings with Catch-All logic
+        String sqlBen = "SELECT DATE_FORMAT(b.DateRegistered, '%Y-%m-%d') as d, COUNT(*) FROM beneficiary b " +
+                        "LEFT JOIN shelter s ON b.ShelterID = s.ShelterID " +
+                        "WHERE (s.ActivationDate IS NULL OR DATE(b.DateRegistered) >= DATE(s.ActivationDate)) " +
+                        "AND (? = 'All Regions' OR b.ShelterID = ?) " +
+                        "GROUP BY d";
+                        
+        String sqlHouse = "SELECT DATE_FORMAT(b.DateRegistered, '%Y-%m-%d') as d, COUNT(*) FROM household h " +
+                          "JOIN beneficiary b ON h.BeneficiaryID = b.BeneficiaryID " +
+                          "LEFT JOIN shelter s ON b.ShelterID = s.ShelterID " +
+                          "WHERE (s.ActivationDate IS NULL OR DATE(b.DateRegistered) >= DATE(s.ActivationDate)) " +
+                          "AND (? = 'All Regions' OR b.ShelterID = ?) " +
+                          "GROUP BY d";
 
         try (Connection con = getConnection()) {
             if (con != null) {
                 // Add Beneficiaries
-                String sqlBen = "SELECT DATE_FORMAT(b.DateRegistered, '%Y-%m-%d') as d, COUNT(*) FROM beneficiary b LEFT JOIN shelter s ON b.ShelterID = s.ShelterID WHERE (s.ActivationDate IS NULL OR DATE(b.DateRegistered) >= DATE(s.ActivationDate)) " + filterSql + " GROUP BY d";
                 try(PreparedStatement ps = con.prepareStatement(sqlBen)){
-                    if(!isGlobal) ps.setString(1, shelterFilterID);
+                    ps.setString(1, safeShelterID);
+                    ps.setString(2, safeShelterID);
                     ResultSet rs = ps.executeQuery();
-                    while(rs.next()){ String d = rs.getString(1); if(d != null) dateCounts.put(d, dateCounts.getOrDefault(d, 0) + rs.getInt(2)); }
+                    while(rs.next()){ 
+                        String d = rs.getString(1); 
+                        if(d != null) dateCounts.put(d, dateCounts.getOrDefault(d, 0) + rs.getInt(2)); 
+                    }
                 }
                 
                 // Add Households
-                String sqlHouse = "SELECT DATE_FORMAT(b.DateRegistered, '%Y-%m-%d') as d, COUNT(*) FROM household h JOIN beneficiary b ON h.BeneficiaryID = b.BeneficiaryID LEFT JOIN shelter s ON b.ShelterID = s.ShelterID WHERE (s.ActivationDate IS NULL OR DATE(b.DateRegistered) >= DATE(s.ActivationDate)) " + filterSql + " GROUP BY d";
                 try(PreparedStatement ps = con.prepareStatement(sqlHouse)){
-                    if(!isGlobal) ps.setString(1, shelterFilterID);
+                    ps.setString(1, safeShelterID);
+                    ps.setString(2, safeShelterID);
                     ResultSet rs = ps.executeQuery();
-                    while(rs.next()){ String d = rs.getString(1); if(d != null) dateCounts.put(d, dateCounts.getOrDefault(d, 0) + rs.getInt(2)); }
+                    while(rs.next()){ 
+                        String d = rs.getString(1); 
+                        if(d != null) dateCounts.put(d, dateCounts.getOrDefault(d, 0) + rs.getInt(2)); 
+                    }
                 }
             }
         } catch (Exception e) { e.printStackTrace(); }
