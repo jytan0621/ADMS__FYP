@@ -105,15 +105,9 @@
     </script>
 </head>
 <body>
-    <header class="fixed-header">
-        <div style="display: flex; gap: 10px; align-items: center;">
-            <img src="Image/Logo_ADMS.png" alt="Logo" style="height:24px;"> <b>ADMS</b>
-        </div>
-        <div><%= currentUser.getUserName() %> | <%= currentUser.getRole().toUpperCase() %></div>
-    </header>
-
     <div class="sidebar-container"><jsp:include page="Sidebar.jsp" /></div>
-
+    <jsp:include page="Headbar.jsp" />
+    
     <div class="main-content-scrollable">
         <div class="form-card">
             <h1 class="page-title">New Request</h1>

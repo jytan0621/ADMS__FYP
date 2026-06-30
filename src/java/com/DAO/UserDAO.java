@@ -14,17 +14,24 @@ public class UserDAO {
     String jdbcUserName = "root";
     String jdbcPassword = "admin";
     
-    // UPDATED SQL: Added ProfilePicture to SELECT and UPDATE
     private static final String INSERT_NEW_USER_SQL="INSERT INTO userprofile(UserName, Email, Password, Role, AssignedRegion, CreatedAt, Status, ProfilePicture) VALUES (?, ?, ?, ?, ?, ?, ?, 'default-avatar.png')";
-    private static final String SELECT_USER_BY_ID="select * from userprofile where userID=?";
-    private static final String SELECT_USERS_BY_REGION_SQL = "SELECT * FROM userprofile WHERE AssignedRegion = ?";
-    private static final String SELECT_ALL_USERS_GLOBAL_SQL = "SELECT * FROM userprofile";
-    // UPDATED: Now updates ProfilePicture
-    private static final String USER_UPDATE_SQL="update userprofile set UserName=?, Email=?, ProfilePicture=? where userID=?";
     
+    // 【全新 SQL】：同时查询出 ShelterName 和 Location (City, State)
+    private static final String SELECT_USER_BY_ID = 
+        "SELECT u.*, s.ShelterName, CONCAT(a.City, ', ', a.State) AS Location FROM userprofile u LEFT JOIN shelter s ON u.AssignedRegion = s.ShelterID LEFT JOIN address a ON s.Postcode = a.Postcode WHERE u.userID=?";
+        
+    private static final String SELECT_USERS_BY_REGION_SQL = 
+        "SELECT u.*, s.ShelterName, CONCAT(a.City, ', ', a.State) AS Location FROM userprofile u LEFT JOIN shelter s ON u.AssignedRegion = s.ShelterID LEFT JOIN address a ON s.Postcode = a.Postcode WHERE u.AssignedRegion = ?";
+        
+    private static final String SELECT_ALL_USERS_GLOBAL_SQL = 
+        "SELECT u.*, s.ShelterName, CONCAT(a.City, ', ', a.State) AS Location FROM userprofile u LEFT JOIN shelter s ON u.AssignedRegion = s.ShelterID LEFT JOIN address a ON s.Postcode = a.Postcode";
+        
+    private static final String LOGIN_SQL = 
+        "SELECT u.*, s.ShelterName, CONCAT(a.City, ', ', a.State) AS Location FROM userprofile u LEFT JOIN shelter s ON u.AssignedRegion = s.ShelterID LEFT JOIN address a ON s.Postcode = a.Postcode WHERE u.Email = ? AND u.Password = ?";
+    
+    private static final String USER_UPDATE_SQL="update userprofile set UserName=?, Email=?, ProfilePicture=? where userID=?";
     private static final String ADMIN_UPDATE_SQL="update userprofile set Role=?, AssignedRegion=?, Status= ? where userID=?";
     private static final String PASSWORD_UPDATE_SQL="update userprofile set Password=? where userID=?";
-    private static final String LOGIN_SQL ="SELECT * FROM userprofile WHERE Email = ? AND Password = ?";
     private static final String UPDATE_PASSWORD_BY_EMAIL ="UPDATE userprofile SET Password = ? WHERE Email = ?";
 
     public UserDAO(){}
@@ -65,16 +72,19 @@ public class UserDAO {
                  String Email = rs.getString("Email");
                  String Password = rs.getString("Password");
                  String Role = rs.getString("Role");
-                 String AssignedRegion = rs.getString("AssignedRegion");
+                 String AssignedRegion = rs.getString("AssignedRegion"); // 保持 SH0001 以供 Update 使用
+                 String ShelterName = rs.getString("ShelterName"); // 庇护所名字
+                 String Location = rs.getString("Location");       // 地理位置
                  String CreatedAt = rs.getString("CreatedAt");
                  String Status = rs.getString("Status");
                  
-                 // NEW: Retrieve Picture
                  String ProfilePicture = rs.getString("ProfilePicture");
                  if(ProfilePicture == null) ProfilePicture = "default-avatar.png";
-
+                 
                  user = new User(UserID, UserName, Email, Password, Role, AssignedRegion, CreatedAt, Status);
                  user.setProfilePicture(ProfilePicture);
+                 user.setShelterName(ShelterName != null ? ShelterName : "-");
+                 user.setLocation(Location != null ? Location : AssignedRegion); // 存入 Location
              }
          }catch (SQLException e){ printSQLException(e); }
          return user;
@@ -93,31 +103,32 @@ public class UserDAO {
                 String password = rs.getString("Password");
                 String role = rs.getString("Role");
                 String region = rs.getString("AssignedRegion");
+                String shelterName = rs.getString("ShelterName");
+                String location = rs.getString("Location");
                 String createdAt = rs.getString("CreatedAt");
                 String status = rs.getString("Status");
                 
-                // NEW: Retrieve Picture
                 String pic = rs.getString("ProfilePicture");
                 if(pic == null) pic = "default-avatar.png";
 
                 User u = new User(userID, userName, email, password, role, region, createdAt, status);
                 u.setProfilePicture(pic);
+                u.setShelterName(shelterName != null ? shelterName : "-");
+                u.setLocation(location != null ? location : region);
                 users.add(u);
             }
         } catch (SQLException e) { printSQLException(e); }
         return users;
     }
     
-    // UPDATED: Updates Profile Picture
     public boolean userUpdate(User user) throws SQLException{
         boolean rowUpdated;
         try (Connection connection = getConnection();
                 PreparedStatement statement=connection.prepareStatement(USER_UPDATE_SQL);){
             statement.setString(1,user.getUserName());
             statement.setString(2,user.getEmail());
-            statement.setString(3,user.getProfilePicture()); // Save the filename
+            statement.setString(3,user.getProfilePicture()); 
             statement.setString(4,user.getUserID());
-            
             rowUpdated = statement.executeUpdate()>0;
         }
         return rowUpdated;
@@ -128,7 +139,7 @@ public class UserDAO {
         try (Connection connection = getConnection();
                 PreparedStatement statement=connection.prepareStatement(ADMIN_UPDATE_SQL);){
             statement.setString(1,user.getRole());
-            statement.setString(2,user.getAssignedRegion());
+            statement.setString(2,user.getAssignedRegion()); // 这里依然安全地保存 SH0001
             statement.setString(3,user.getStatus());
             statement.setString(4,user.getUserID());
             rowUpdated = statement.executeUpdate()>0;
@@ -159,15 +170,18 @@ public class UserDAO {
                 String userName = rs.getString("UserName");
                 String role = rs.getString("Role");
                 String assignedRegion = rs.getString("AssignedRegion");
+                String shelterName = rs.getString("ShelterName");
+                String location = rs.getString("Location");
                 String createdAt = rs.getString("CreatedAt");
                 String status = rs.getString("Status");
                 
-                // NEW: Get picture on login
                 String pic = rs.getString("ProfilePicture");
                 if(pic == null) pic = "default-avatar.png";
 
                 user = new User(userID, userName, email, password, role, assignedRegion, createdAt, status);
                 user.setProfilePicture(pic);
+                user.setShelterName(shelterName != null ? shelterName : "-");
+                user.setLocation(location != null ? location : assignedRegion);
             }
         } catch (SQLException e) { e.printStackTrace(); }
         return user;
@@ -209,13 +223,18 @@ public class UserDAO {
                 String password = rs.getString("Password");
                 String role = rs.getString("Role");
                 String region = rs.getString("AssignedRegion");
+                String shelterName = rs.getString("ShelterName"); 
+                String location = rs.getString("Location"); 
                 String createdAt = rs.getString("CreatedAt");
                 String status = rs.getString("Status");
+                
                 String pic = rs.getString("ProfilePicture");
                 if(pic == null) pic = "default-avatar.png";
 
                 User u = new User(userID, userName, email, password, role, region, createdAt, status);
                 u.setProfilePicture(pic);
+                u.setShelterName(shelterName != null ? shelterName : "-"); 
+                u.setLocation(location != null ? location : region);
                 users.add(u);
             }
         } catch (SQLException e) { printSQLException(e); }

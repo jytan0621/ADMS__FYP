@@ -28,7 +28,11 @@ public class BeneficiaryDAO {
     private static final String SELECT_BENEFICIARY_BY_IC = "SELECT * FROM beneficiary WHERE B_ICNumber = ?";
     private static final String SELECT_BENEFICIARY_BY_ID = "SELECT * FROM beneficiary WHERE BeneficiaryID = ?";
     private static final String SELECT_ALL_BENEFICIARIES = "SELECT * FROM beneficiary ORDER BY BeneficiaryID DESC";
-    private static final String SELECT_BENEFICIARIES_BY_STATUS = "SELECT * FROM beneficiary WHERE B_Status = ? ORDER BY BeneficiaryID DESC";
+    
+    // FIXED: Filter out previous year's beneficiaries by comparing Registration Date with Shelter Activation Date
+    private static final String SELECT_BENEFICIARIES_BY_STATUS = 
+            "SELECT b.* FROM beneficiary b LEFT JOIN shelter s ON b.ShelterID = s.ShelterID " +
+            "WHERE b.B_Status = ? AND (s.ActivationDate IS NULL OR DATE(b.DateRegistered) >= DATE(s.ActivationDate)) ORDER BY b.BeneficiaryID DESC";
     
     private static final String DELETE_BENEFICIARY_SQL = "DELETE FROM beneficiary WHERE BeneficiaryID = ?";
     private static final String UPDATE_BENEFICIARY_STATUS_SQL = "UPDATE beneficiary SET B_status = ? WHERE BeneficiaryID = ?";
@@ -66,15 +70,28 @@ public class BeneficiaryDAO {
 
     // ================= SHELTER LOOKUP USING INNER JOIN =================
 
-    // For Staff: Splits "Terengganu - Kuala Nerus" and uses INNER JOIN
     public String getShelterIDByStaffRegion(String regionString) {
-        if (regionString == null || !regionString.contains("-")) return null;
+        if (regionString == null || regionString.trim().isEmpty()) return null;
 
-        String[] parts = regionString.split("-");
-        String state = parts[0].trim();
-        String city = parts[1].trim();
+        String state = "";
+        String city = "";
 
-        // This query finds the postcode for the City/State, then links it to the shelter
+        // Check if the format is "City, State" (e.g., "Kuala Nerus, Terengganu")
+        if (regionString.contains(",")) {
+            String[] parts = regionString.split(",");
+            city = parts[0].trim();
+            state = parts[1].trim();
+        } 
+        // Fallback for old format "State-City"
+        else if (regionString.contains("-")) {
+            String[] parts = regionString.split("-");
+            state = parts[0].trim();
+            city = parts[1].trim();
+        } 
+        else {
+            return null; // Invalid format
+        }
+
         String sql = "SELECT s.ShelterID FROM shelter s " +
                      "JOIN address a ON s.Postcode = a.Postcode " +
                      "WHERE a.State LIKE ? AND a.City LIKE ?";
@@ -85,10 +102,10 @@ public class BeneficiaryDAO {
             ResultSet rs = ps.executeQuery();
             if (rs.next()) return rs.getString("ShelterID");
         } catch (SQLException e) { printSQLException(e); }
+        
         return null;
     }
 
-    // For Public: Direct lookup by Postcode
     public String getShelterIDByPostcode(int postcode) {
         String sql = "SELECT ShelterID FROM shelter WHERE Postcode = ?";
         try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -165,6 +182,42 @@ public class BeneficiaryDAO {
         }
     }
 
+    // ================= NOTIFICATION HELPER =================
+
+    private void checkShelterCapacityWarning(String shelterID) {
+        if (shelterID == null || shelterID.isEmpty()) return;
+        
+        try (Connection conn = getConnection()) {
+            int capacity = 0;
+            try(PreparedStatement ps = conn.prepareStatement("SELECT Capacity FROM shelter WHERE ShelterID = ?")) {
+                ps.setString(1, shelterID);
+                ResultSet rs = ps.executeQuery();
+                if(rs.next()) capacity = rs.getInt("Capacity");
+            }
+            
+            if (capacity > 0) {
+                int currentPop = 0;
+                String popSql = "SELECT " +
+                    "(SELECT COUNT(*) FROM beneficiary b WHERE b.ShelterID = ? AND b.B_Status = 'Active') + " +
+                    "(SELECT COUNT(*) FROM household h JOIN beneficiary b2 ON h.BeneficiaryID = b2.BeneficiaryID WHERE b2.ShelterID = ? AND h.H_status IN ('ADMITTED', 'PENDING')) AS total";
+                try(PreparedStatement ps2 = conn.prepareStatement(popSql)) {
+                    ps2.setString(1, shelterID);
+                    ps2.setString(2, shelterID);
+                    ResultSet rs2 = ps2.executeQuery();
+                    if(rs2.next()) currentPop = rs2.getInt("total");
+                }
+                
+                double fillPercentage = (double) currentPop / capacity;
+                if (fillPercentage >= 0.95) {
+                    NotificationDAO notifDAO = new NotificationDAO();
+                    String msg = "Capacity Warning: Shelter " + shelterID + " is at " + (int)(fillPercentage * 100) + "% capacity. Prepare secondary shelter.";
+                    notifDAO.sendToRole("Manager", msg);
+                    notifDAO.sendToRole("Admin", msg);
+                }
+            }
+        } catch (Exception e) { e.printStackTrace(); }
+    }
+
     // ================= BENEFICIARY OPERATIONS =================
 
     public void insertBeneficiary(Beneficiary b) throws SQLException {
@@ -197,6 +250,9 @@ public class BeneficiaryDAO {
             preparedStatement.setString(18, b.getTentID());
 
             preparedStatement.executeUpdate();
+            
+            // --- NOTIFICATION TRIGGER: Capacity Warning ---
+            checkShelterCapacityWarning(b.getShelterID());
         }
     }
 
@@ -270,7 +326,6 @@ public class BeneficiaryDAO {
         boolean success = false;
         Connection conn = null;
         PreparedStatement ps1 = null;
-        PreparedStatement ps2 = null;
 
         if ("Inactive".equalsIgnoreCase(bStatusInput)) {
             return checkoutFamily(id);
@@ -289,7 +344,6 @@ public class BeneficiaryDAO {
             e.printStackTrace();
         } finally {
             try { if (ps1 != null) ps1.close(); } catch (Exception e) {}
-            try { if (ps2 != null) ps2.close(); } catch (Exception e) {}
             try { if (conn != null) conn.close(); } catch (Exception e) {}
         }
         
@@ -458,6 +512,16 @@ public class BeneficiaryDAO {
             ps.setString(11, h.getTentID());
 
             ps.executeUpdate();
+            
+            // --- NOTIFICATION TRIGGER: Capacity Warning ---
+            String shelterID = null;
+            try(PreparedStatement psS = connection.prepareStatement("SELECT ShelterID FROM beneficiary WHERE BeneficiaryID = ?")) {
+                psS.setString(1, h.getBeneficiaryID());
+                ResultSet rsS = psS.executeQuery();
+                if(rsS.next()) shelterID = rsS.getString(1);
+            }
+            if(shelterID != null) checkShelterCapacityWarning(shelterID);
+            
         } catch (SQLException e) {
             printSQLException(e);
         }
@@ -533,7 +597,6 @@ public class BeneficiaryDAO {
         return h;
     }
     
-    // Helper for Household Mapping
     private Household mapResultSetToHousehold(ResultSet rs) throws SQLException {
         Household h = new Household();
         h.setHouseholdID(rs.getString("HouseholdID"));
@@ -598,6 +661,29 @@ public class BeneficiaryDAO {
             e.printStackTrace();
         }
         return false;
+    }
+    
+    // FIXED: Fetch only active beneficiaries FOR THE CURRENT DISASTER
+    public List<Beneficiary> selectActiveBeneficiaries() {
+        List<Beneficiary> beneficiaries = new ArrayList<>();
+        
+        // JOIN shelter table to ensure DateRegistered is ON or AFTER the Shelter ActivationDate
+        String sql = "SELECT b.* FROM beneficiary b " +
+                     "LEFT JOIN shelter s ON b.ShelterID = s.ShelterID " +
+                     "WHERE b.B_status = 'Active' AND (s.ActivationDate IS NULL OR DATE(b.DateRegistered) >= DATE(s.ActivationDate)) " +
+                     "ORDER BY b.BeneficiaryID DESC";
+        
+        try (Connection connection = getConnection();
+             PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
+            
+            ResultSet rs = preparedStatement.executeQuery();
+            while (rs.next()) {
+                beneficiaries.add(mapResultSetToBeneficiary(rs));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return beneficiaries;
     }
     
     private void printSQLException(SQLException ex) {

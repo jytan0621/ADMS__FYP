@@ -200,19 +200,8 @@
 </head>
 <body>
 
-    <header class="fixed-header">
-        <div class="flex items-center gap-3">
-            <img src="Image/Logo_ADMS.png" alt="Logo" style="height:24px;">
-            <span class="text-xl font-bold tracking-tight">ADMS</span>
-        </div>
-        <div class="font-medium text-sm bg-white/10 px-3 py-1 rounded">
-            <%= currentUser.getUserName() %> | <%= currentUser.getRole().toUpperCase() %>
-        </div>
-    </header>
-
-    <div class="sidebar-container">
-        <jsp:include page="Sidebar.jsp" />
-    </div>
+    <div class="sidebar-container"><jsp:include page="Sidebar.jsp" /></div>
+    <jsp:include page="Headbar.jsp" />
 
     <div class="main-content-centered">
         

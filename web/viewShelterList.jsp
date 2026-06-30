@@ -28,7 +28,7 @@
     <title>ADMS - Shelter List</title>
     <link rel="stylesheet" type="text/css" href="Sidebar.css">
     <style>
-        /* Shared Styles from userList.jsp */
+        /* Shared Styles */
         * { box-sizing: border-box; }
         body { margin: 0; font-family: 'Segoe UI', Arial, sans-serif; background-color: #f8fafc; height: 100vh; overflow: hidden; }
         .fixed-header { position: fixed; top: 0; left: 0; right: 0; height: 60px; z-index: 50; background-color: #0b5ea8; color: white; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
@@ -48,18 +48,9 @@
 </head>
 <body>
 
-    <header class="fixed-header">
-        <div style="display:flex; align-items:center; gap:12px;">
-            <img src="Image/Logo_ADMS.png" alt="Logo" style="height:24px;">
-            <span style="font-size: 20px; font-weight: bold;">ADMS</span>
-        </div>
-        <div class="font-medium text-sm bg-white/10 px-3 py-1 rounded">
-            <%= currentUser.getUserName() %> | <%= currentUser.getRole().toUpperCase() %>
-        </div>
-    </header>
-
     <div class="sidebar-container"><jsp:include page="Sidebar.jsp" /></div>
-
+    <jsp:include page="Headbar.jsp" />
+    
     <div class="main-content-view">
         <div class="page-header">
             <h2>Shelter Management</h2>
@@ -72,9 +63,8 @@
                     <tr>
                         <th>Shelter ID</th>
                         <th>Shelter Name</th>
-                        <th>Postcode</th>
-                        <th>Occupancy (Bene/Cap)</th>
-                        <th>Status</th>
+                        <th>Occupancy</th>
+                        <th>Activation Date</th> <th>Status</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -89,13 +79,15 @@
                         <tr>
                             <td style="font-weight:bold; color:#0b5ea8;"><%= s.getShelterID() %></td>
                             <td style="font-weight:600;"><%= s.getShelterName() %></td>
-                            <td><%= s.getPostcode() %></td>
                             <td>
                                 <span style="font-weight:bold; color: <%= isFull ? "#ef4444" : "#334155" %>;">
                                     <%= s.getCurrentBene() %> 
                                 </span>
                                 <span style="color:#94a3b8;">/ <%= s.getCapacity() %> Pax</span>
                                 <% if(isFull) { %><br><small style="color:#ef4444; font-weight:bold;">SHELTER FULL</small><% } %>
+                            </td>
+                            <td style="color:#64748b; font-weight:500;">
+                                <%= s.getActivationDate() != null ? s.getActivationDate() : "N/A" %>
                             </td>
                             <td>
                                 <span class="status <%= isActive ? "status-active" : "status-inactive" %>">

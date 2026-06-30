@@ -1,14 +1,9 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/JSP_Servlet/Servlet.java to edit this template
- */
 package com.WEB;
 
 import com.DAO.DashboardDAO;
-import com.Model.AidRequest;
+import com.DAO.ShelterDAO;
 import com.Model.User;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import javax.servlet.ServletException;
@@ -31,6 +26,9 @@ public class DashboardServlet extends HttpServlet {
         User user = (User) session.getAttribute("currentUser"); 
         if (user == null) { response.sendRedirect("index.jsp"); return; }
 
+        String shelterName = dao.getShelterNameByID(user.getAssignedRegion());
+        request.setAttribute("shelterName", shelterName);
+        
         String role = user.getRole().toLowerCase().trim();
 
         // 1. Common Stats
@@ -38,34 +36,38 @@ public class DashboardServlet extends HttpServlet {
         request.setAttribute("totalBen", stats.get("totalBeneficiaries"));
         request.setAttribute("pendingReq", stats.get("pendingRequests"));
         request.setAttribute("lowStock", stats.get("lowStockItems"));
+        request.setAttribute("activeSheltersCount", stats.get("activeShelters")); 
         
-        // 2. Announcements (For ALL Roles)
-        request.setAttribute("announcements", dao.getLatestAnnouncements());
+        // UPDATED: Pass the UserID to fetch personalized Broadcast Alerts!
+        request.setAttribute("announcements", dao.getLatestAnnouncements(user.getUserID()));
+
+        // 2. Trend Dropdown Filter Logic
+        String trendFilter = request.getParameter("trendShelter");
+        if(trendFilter == null || trendFilter.isEmpty()) trendFilter = "All";
+        request.setAttribute("selectedTrendShelter", trendFilter);
 
         // 3. Role Specific Logic
         if (role.equals("approval officer")) {
-            // Approval Data
+            // Approval Officer Personal Stats
             List<Integer> officerStats = dao.getOfficerPersonalStats(user.getUserID());
             request.setAttribute("myApproved", officerStats.get(0));
             request.setAttribute("myRejected", officerStats.get(1));
             request.setAttribute("globalQueue", officerStats.get(2)); 
             request.setAttribute("myTotalProcessed", officerStats.get(0) + officerStats.get(1));
             
+            // Restock Stats
             List<Integer> restock = dao.getRestockStatusCounts();
             request.setAttribute("restockApproved", restock.get(0));
             request.setAttribute("restockPending", restock.get(1));
             request.setAttribute("restockRejected", restock.get(2));
 
-            // Global Queue List
             request.setAttribute("globalPendingList", dao.getGlobalPendingList());
-
-            // Inventory
             setInventoryData(request);
             setAllItemsData(request);
 
         } else if (role.equals("field officer")) {
-            // Field Data
-            setTrendChartData(request); 
+            setTrendChartData(request, trendFilter); 
+            request.setAttribute("allShelters", new ShelterDAO().selectAllShelters());
 
             Map<String, Integer> statusCounts = dao.getBeneficiaryStatusCounts();
             request.setAttribute("activeBenCount", statusCounts.get("active"));
@@ -78,13 +80,32 @@ public class DashboardServlet extends HttpServlet {
             request.setAttribute("myPendingList", dao.getFieldOfficerPendingList(user.getUserID()));
             
         } else if (role.equals("logistic staff")) {
-            // Logistic Data
             setInventoryData(request); 
             setAllItemsData(request); 
             
+        } else if (role.equals("manager")) {
+            // HQ MANAGER DATA
+            setTrendChartData(request, trendFilter);
+            request.setAttribute("activeSheltersSummary", dao.getActiveSheltersSummary());
+            request.setAttribute("allShelters", new ShelterDAO().selectAllShelters());
+            
+            // Manager sees GLOBAL Stats, not personal stats!
+            List<Integer> globalStats = dao.getGlobalApprovalStats();
+            request.setAttribute("myApproved", globalStats.get(0));
+            request.setAttribute("myRejected", globalStats.get(1));
+            request.setAttribute("globalQueue", globalStats.get(2)); 
+            request.setAttribute("myTotalProcessed", globalStats.get(0) + globalStats.get(1));
+            
+            // Restock Charts Data
+            List<Integer> restock = dao.getRestockStatusCounts();
+            request.setAttribute("restockApproved", restock.get(0));
+            request.setAttribute("restockPending", restock.get(1));
+            request.setAttribute("restockRejected", restock.get(2));
+            
         } else {
-            // Admin Data
-            setTrendChartData(request);
+            // ADMIN DATA
+            setTrendChartData(request, trendFilter);
+            request.setAttribute("allShelters", new ShelterDAO().selectAllShelters());
             
             Map<String, Integer> statusCounts = dao.getBeneficiaryStatusCounts();
             request.setAttribute("activeBenCount", statusCounts.get("active"));
@@ -99,10 +120,9 @@ public class DashboardServlet extends HttpServlet {
         request.getRequestDispatcher("Dashboard.jsp").forward(request, response);
     }
     
-    // --- HELPERS (No JSON) ---
-
-    private void setTrendChartData(HttpServletRequest request) {
-        Map<String, List<Object>> trendData = dao.getDailyRegistrationTrend();
+    // --- HELPERS ---
+    private void setTrendChartData(HttpServletRequest request, String filterID) {
+        Map<String, List<Object>> trendData = dao.getDailyRegistrationTrend(filterID);
         request.setAttribute("trendLabelsList", trendData.get("labels"));
         request.setAttribute("trendDataList", trendData.get("data"));
     }

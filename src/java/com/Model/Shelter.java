@@ -4,6 +4,8 @@
  */
 package com.Model;
 
+import java.util.Date;
+
 /**
  *
  * @author User
@@ -16,10 +18,11 @@ public class Shelter {
     private int capacity;
     private String status;     
     private int currentBene;
+    private Date activationDate; // NEW ATTRIBUTE
 
-    public Shelter() {
-    }
+    public Shelter() {}
 
+    // Constructor for Servlet Insert
     public Shelter(String shelterName, String state, int postcode, int capacity, String status) {
         this.shelterName = shelterName;
         this.state = state;
@@ -28,6 +31,7 @@ public class Shelter {
         this.status = status;
     }
 
+    // Constructor for Servlet Update
     public Shelter(String shelterID, String shelterName, String state, int postcode, int capacity, String status, int currentBene) {
         this.shelterID = shelterID;
         this.shelterName = shelterName;
@@ -38,7 +42,25 @@ public class Shelter {
         this.currentBene = currentBene;
     }
 
-    
+    // FULL Constructor for DAO retrieval
+    public Shelter(String shelterID, String shelterName, String state, int postcode, int capacity, String status, int currentBene, Date activationDate) {
+        this.shelterID = shelterID;
+        this.shelterName = shelterName;
+        this.state = state;
+        this.postcode = postcode;
+        this.capacity = capacity;
+        this.status = status;
+        this.currentBene = currentBene;
+        this.activationDate = activationDate;
+    }
+
+    public Date getActivationDate() {
+        return activationDate;
+    }
+
+    public void setActivationDate(Date activationDate) {
+        this.activationDate = activationDate;
+    }
     
     public String getShelterID() {
         return shelterID;

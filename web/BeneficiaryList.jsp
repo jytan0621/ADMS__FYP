@@ -84,17 +84,8 @@
 </head>
 <body>
 
-    <header class="fixed-header">
-        <div style="display:flex; gap:10px; align-items:center;">
-            <img src="Image/Logo_ADMS.png" alt="Logo" style="height:24px;">
-            <span style="font-size:20px; font-weight:bold;">ADMS</span>
-        </div>
-        <div><%= currentUser.getUserName() %> | <%= currentUser.getRole().toUpperCase() %></div>
-    </header>
-
-    <div class="sidebar-container">
-        <jsp:include page="Sidebar.jsp" />
-    </div>
+    <div class="sidebar-container"><jsp:include page="Sidebar.jsp" /></div>
+    <jsp:include page="Headbar.jsp" />
 
     <div class="main-content-view">
         

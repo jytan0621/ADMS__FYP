@@ -158,12 +158,10 @@ public class BeneficiaryServlet extends HttpServlet {
         HttpSession session = request.getSession();
         User currentUser = (User) session.getAttribute("currentUser");
 
-        String staffRegion = currentUser.getAssignedRegion(); 
-        
-        // Uses the new JOIN method
-        String shelterID = beneficiaryDAO.getShelterIDByStaffRegion(staffRegion);
+        // Since the database now stores the ShelterID directly in AssignedRegion!
+        String shelterID = currentUser.getAssignedRegion(); 
 
-        if (shelterID == null) {
+        if (shelterID == null || shelterID.trim().isEmpty()) {
             response.sendRedirect("newBeneficiary?error=NoShelterFoundForRegion");
             return;
         }

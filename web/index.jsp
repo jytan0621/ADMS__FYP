@@ -131,6 +131,14 @@ Click nbfs://nbhost/SystemFileSystem/Templates/JSP_Servlet/Html.html to edit thi
                 <button type="submit" class="login-btn">Login</button>
 
                 <a href="ForgetPassword.jsp" class="forgot">Forget Password?</a>
+                
+                <div class="text-center mt-4">
+                    <hr>
+                    <p class="mb-1 text-muted">Are you a Volunteer for today?</p>
+                    <a href="selectShelter.jsp" class="btn btn-outline-primary w-100 fw-bold">
+                        Volunteer Check-In Here
+                    </a>
+                </div>
 
                 <%
     if ("invalid".equals(request.getParameter("error"))) {

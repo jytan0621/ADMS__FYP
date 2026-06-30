@@ -17,7 +17,6 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import javax.servlet.http.Part;
 
-// 1. ADDED ANNOTATION FOR FILE UPLOAD
 @WebServlet(name = "UserServlet", urlPatterns = {
     "/UserServlet", "/list", "/new", "/insert", "/edituser", 
     "/editadmin", "/userupdate", "/adminupdate", "/passwordupdate", "/passwordchange"
@@ -80,12 +79,11 @@ public class UserServlet extends HttpServlet {
             }
             List<User> listUser;
 
-            // Logic: Manager sees ALL, Admin/Others see only their Region
             if ("Manager".equals(currentUser.getRole())) {
-                listUser = userDAO.selectAllUsersGlobal(); // No filter applied
+                listUser = userDAO.selectAllUsersGlobal(); 
             } else {
                 String regionToFilter = currentUser.getAssignedRegion();
-                listUser = userDAO.selectAllUser(regionToFilter); // Filtered by region
+                listUser = userDAO.selectAllUser(regionToFilter); 
             }
             request.setAttribute("listUser", listUser);
             RequestDispatcher dispatcher = request.getRequestDispatcher("UserList.jsp");
@@ -116,12 +114,10 @@ public class UserServlet extends HttpServlet {
         String email = request.getParameter("email");      
         String role = request.getParameter("role");
         
-        String city = request.getParameter("city");
-        String state = request.getParameter("state");
-        String assignedRegion = "General";
-
-        if (city != null && state != null && !city.isEmpty()) {
-            assignedRegion = state + " - " + city;
+        String assignedRegion = request.getParameter("assignedRegion");
+        
+        if (assignedRegion == null || assignedRegion.trim().isEmpty()) {
+            assignedRegion = "General"; 
         }
 
         String status = "Active"; 
@@ -130,17 +126,20 @@ public class UserServlet extends HttpServlet {
 
         String autoPassword = generateRandomPassword();
 
-        // Updated Constructor with null profile picture (handled by default in DB)
         User newUser = new User(null, userName, email, autoPassword, role, assignedRegion, createdAt, status);
         userDAO.insertUser(newUser);
         
+        // FIXED: Better Error Handling so you know if the email failed
         try {
             String subject = "ADMS - Account Created";
-            String content = "Welcome " + userName + ". Your pass: " + autoPassword;
+            String content = "Welcome " + userName + ".\nYour login email is: " + email + "\nYour temporary password is: " + autoPassword;
             EmailUtility.sendEmail(email, subject, content);
-        } catch (Exception e) { e.printStackTrace(); }
-
-        response.sendRedirect("list?msg=UserAdded");
+            response.sendRedirect("list?msg=UserAdded");
+        } catch (Exception e) { 
+            System.err.println("Email failed to send. Password is: " + autoPassword);
+            e.printStackTrace(); 
+            response.sendRedirect("list?msg=UserAddedEmailFailed"); // Tells the UI that the user exists but the email broke!
+        }
     }
     
     private void showEditUserForm(HttpServletRequest request, HttpServletResponse response)
@@ -154,14 +153,16 @@ public class UserServlet extends HttpServlet {
     
     private void showEditAdminForm(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException, SQLException{
-        String UserID= request.getParameter("UserID");
+        String UserID= request.getParameter("UserID"); 
+        if (UserID == null) {
+            UserID = request.getParameter("id");
+        }
         User existingUser = userDAO.selectUser(UserID);
         request.setAttribute("user", existingUser);
         RequestDispatcher dispatcher = request.getRequestDispatcher("EditAdminForm.jsp");
         dispatcher.forward(request,response);
     }
     
-    // --- UPDATED METHOD: HANDLES FILE UPLOAD ---
     private void updateUser(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException, SQLException{
         
@@ -169,29 +170,22 @@ public class UserServlet extends HttpServlet {
         String UserName = request.getParameter("username");
         String Email = request.getParameter("email");
         
-        // 1. Handle File Upload
-        Part filePart = request.getPart("profilePic"); // Matches name="profilePic" in form
+        Part filePart = request.getPart("profilePic"); 
         String fileName = "default-avatar.png";
         
-        // If user uploaded a new file
         if (filePart != null && filePart.getSize() > 0) {
             String submittedFileName = getFileName(filePart);
-            // Prefix filename with UserID to prevent duplicates
             fileName = UserID + "_" + submittedFileName;
             
-            // Define upload path: /webapps/PROJECT_NAME/uploads
             String uploadPath = getServletContext().getRealPath("") + File.separator + "uploads";
             File uploadDir = new File(uploadPath);
             if (!uploadDir.exists()) uploadDir.mkdir();
             
-            // Save the file
             filePart.write(uploadPath + File.separator + fileName);
         } else {
-            // Keep the old picture if no new one was uploaded
             fileName = request.getParameter("existingPic");
         }
         
-        // 2. Update Database
         User user = new User();
         user.setUserID(UserID);
         user.setUserName(UserName);
@@ -200,7 +194,6 @@ public class UserServlet extends HttpServlet {
         
         userDAO.userUpdate(user);
         
-        // 3. Update Session (Important so the picture changes immediately on screen)
         HttpSession session = request.getSession();
         User currentUser = (User) session.getAttribute("currentUser");
         if (currentUser != null && currentUser.getUserID().equals(UserID)) {
@@ -209,10 +202,9 @@ public class UserServlet extends HttpServlet {
             currentUser.setProfilePicture(fileName);
         }
 
-        response.sendRedirect("userProfile.jsp");
+        response.sendRedirect("UserProfile.jsp");
      }
     
-    // Helper to get filename from Part
     private String getFileName(Part part) {
         for (String content : part.getHeader("content-disposition").split(";")) {
             if (content.trim().startsWith("filename")) {
@@ -228,12 +220,10 @@ public class UserServlet extends HttpServlet {
         String Role= request.getParameter("role");
         String Status= request.getParameter("status");
         
-        String city = request.getParameter("city");
-        String state = request.getParameter("state");
-        String AssignedRegion = "General"; 
+        String AssignedRegion = request.getParameter("assignedRegion");
 
-        if (city != null && state != null && !city.isEmpty()) {
-            AssignedRegion = state + " - " + city;
+        if (AssignedRegion == null || AssignedRegion.trim().isEmpty()) {
+            AssignedRegion = "General";
         }
         
          User user=new User();

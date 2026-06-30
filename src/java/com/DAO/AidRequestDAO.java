@@ -20,7 +20,7 @@ public class AidRequestDAO {
     String jdbcPassword = "admin";
 
     // =========================================================================
-    //                               SQL QUERIES
+    //                                SQL QUERIES
     // =========================================================================
     
     private static final String INSERT_REQUEST_SQL = "INSERT INTO aidrequest (RequestedBy, AR_Status, AR_DateSubmitted) VALUES (?, ?, ?)";
@@ -40,11 +40,15 @@ public class AidRequestDAO {
     private static final String DELETE_ITEMS_BY_REQUEST_ID = "DELETE FROM aidrequestitem WHERE RequestID = ?";
     private static final String APPROVE_REJECT_SQL = "UPDATE aidrequest SET AR_Status = ?, AR_ApprovedBy = ?, AR_ApprovedDate = ?, AR_ApprovalRemark = ? WHERE RequestID = ?";
 
+    // FIXED: Only counts reserved stock for the CURRENT disaster cycle to prevent "ghost" reservations from past years!
     private static final String GET_RESERVED_STOCK = 
         "SELECT SUM(ari.AR_QuantityRequested) AS TotalReserved " +
         "FROM aidrequestitem ari " +
         "JOIN aidrequest ar ON ari.RequestID = ar.RequestID " +
-        "WHERE ari.ItemID = ? AND ar.AR_Status = 'Approved'";
+        "LEFT JOIN userprofile u ON ar.RequestedBy = u.UserID " +
+        "LEFT JOIN shelter s ON u.AssignedRegion = s.ShelterID " +
+        "WHERE ari.ItemID = ? AND ar.AR_Status = 'Approved' " +
+        "AND (s.ActivationDate IS NULL OR DATE(ar.AR_DateSubmitted) >= DATE(s.ActivationDate))";
 
     public AidRequestDAO() {}
 
@@ -56,6 +60,19 @@ public class AidRequestDAO {
             e.printStackTrace();
             throw new RuntimeException("Database connection failed");
         }
+    }
+
+    // --- NEW METHOD: Used by DashboardServlet to count global statistics ---
+    public int countRequestsByStatus(String status) {
+        int count = 0;
+        String sql = "SELECT COUNT(*) AS total FROM aidrequest WHERE AR_Status = ?";
+        try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, status);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) { count = rs.getInt("total"); }
+            }
+        } catch (SQLException e) { e.printStackTrace(); }
+        return count;
     }
 
     public int getReservedStock(String itemID) {
@@ -167,40 +184,40 @@ public class AidRequestDAO {
         return request;
     }
     
-    // [UPDATED] Role-Based Filtering
-    // =========================================================================
-    //  SELECT ALL REQUESTS (With Role & Status Filtering)
-    // =========================================================================
     public List<AidRequest> selectAllRequests(String userID, String role, String statusFilter) {
         List<AidRequest> requests = new ArrayList<>();
         
-        // 1. Base Query
-        StringBuilder sql = new StringBuilder("SELECT * FROM aidrequest WHERE 1=1");
+        // 1. Base Query with the Activation Date filter built-in
+        StringBuilder sql = new StringBuilder(
+            "SELECT ar.* FROM aidrequest ar " +
+            "LEFT JOIN userprofile u ON ar.RequestedBy = u.UserID " +
+            "LEFT JOIN shelter s ON u.AssignedRegion = s.ShelterID " +
+            "WHERE (s.ActivationDate IS NULL OR DATE(ar.AR_DateSubmitted) >= DATE(s.ActivationDate))"
+        );
+        
         List<Object> parameters = new ArrayList<>();
 
-        // 2. Role Restriction (Field Officers only see their own)
-        // Admin & Approval Officer see ALL. Everyone else sees only their own.
-        boolean isAdminOrApprover = "Admin".equalsIgnoreCase(role) || "Approval Officer".equalsIgnoreCase(role);
+        // 2. Role Restriction
+        boolean isAdminOrApprover = "Admin".equalsIgnoreCase(role) || "Approval Officer".equalsIgnoreCase(role) || "Manager".equalsIgnoreCase(role);
         
         if (!isAdminOrApprover) {
-            sql.append(" AND RequestedBy = ?");
+            sql.append(" AND ar.RequestedBy = ?");
             parameters.add(userID);
         }
 
-        // 3. Status Filtering (e.g., if user clicked "Pending" on dashboard)
+        // 3. Status Filtering
         if (statusFilter != null && !statusFilter.trim().isEmpty() && !statusFilter.equals("All")) {
-            sql.append(" AND AR_Status = ?");
+            sql.append(" AND ar.AR_Status = ?");
             parameters.add(statusFilter);
         }
 
         // 4. Ordering
-        sql.append(" ORDER BY AR_DateSubmitted DESC");
+        sql.append(" ORDER BY ar.AR_DateSubmitted DESC");
 
         // 5. Execution
         try (Connection connection = getConnection();
              PreparedStatement ps = connection.prepareStatement(sql.toString())) {
             
-            // Set dynamic parameters
             for (int i = 0; i < parameters.size(); i++) {
                 ps.setObject(i + 1, parameters.get(i));
             }
@@ -214,7 +231,6 @@ public class AidRequestDAO {
                 request.setArStatus(rs.getString("AR_Status"));
                 request.setArDateSubmitted(rs.getTimestamp("AR_DateSubmitted"));
 
-                // Handle nullable fields safely
                 try { request.setArApprovedBy(rs.getString("AR_ApprovedBy")); } catch (Exception e) {}
                 try { request.setArApprovedDate(rs.getTimestamp("AR_ApprovedDate")); } catch (Exception e) {}
                 try { request.setArApprovalRemark(rs.getString("AR_ApprovalRemark")); } catch (Exception e) {}
@@ -222,7 +238,7 @@ public class AidRequestDAO {
                 requests.add(request);
             }
         } catch (SQLException e) {
-            e.printStackTrace(); // Consider using a Logger in production
+            e.printStackTrace(); 
         }
         return requests;
     }

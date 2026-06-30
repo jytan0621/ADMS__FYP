@@ -28,7 +28,7 @@ public class AddUserServlet extends HttpServlet {
             String email = request.getParameter("email");
             String password = request.getParameter("password");
             String role = request.getParameter("role");
-            String region = request.getParameter("region");
+            String assignedRegion = request.getParameter("assignedRegion");
 
             // 2. Prepare Auto-Generated Data
             String status = "Active"; // Default status for new users
@@ -43,7 +43,7 @@ public class AddUserServlet extends HttpServlet {
             newUser.setEmail(email);
             newUser.setPassword(password);
             newUser.setRole(role);
-            newUser.setAssignedRegion(region);
+            newUser.setAssignedRegion(assignedRegion);
             newUser.setCreatedAt(createdAt);
             newUser.setStatus(status);
 
@@ -61,7 +61,7 @@ public class AddUserServlet extends HttpServlet {
             dao.insertUser(newUser);
 
             // 5. Redirect to User List upon success
-            response.sendRedirect("UserList.jsp");
+            response.sendRedirect("list");
 
         } catch (Exception e) {
             e.printStackTrace();

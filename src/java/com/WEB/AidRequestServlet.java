@@ -2,6 +2,7 @@ package com.WEB;
 
 import com.DAO.AidRequestDAO;
 import com.DAO.InventoryDAO; 
+import com.DAO.NotificationDAO; // IMPORT NOTIFICATION DAO
 import com.Model.AidRequest;
 import com.Model.AidRequestItem;
 import com.Model.InventoryItem;
@@ -82,7 +83,6 @@ public class AidRequestServlet extends HttpServlet {
         session.removeAttribute("tempRequestItems"); 
         
         String statusFilter = request.getParameter("status"); 
-        // Pass this filter to DAO. If null, DAO should fetch ALL.
         List<AidRequest> listRequest = aidRequestDAO.selectAllRequests(currentUser.getUserID(), currentUser.getRole(), statusFilter);
         Map<String, String> summaryMap = aidRequestDAO.getAllItemSummaries();
         Map<String, String> userMap = aidRequestDAO.getAllUserNames();
@@ -98,8 +98,13 @@ public class AidRequestServlet extends HttpServlet {
     // --- NEW FORM ---
     private void showNewForm(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        List<InventoryItem> items = inventoryDAO.selectAllItems(); 
+        HttpSession session = request.getSession();
+        User currentUser = (User) session.getAttribute("currentUser");
+        
+        // FIXED: Passed the assigned region to fetch shelter-specific items
+        List<InventoryItem> items = inventoryDAO.selectAllItems(currentUser.getAssignedRegion()); 
         request.setAttribute("inventoryList", items);
+        
         RequestDispatcher dispatcher = request.getRequestDispatcher("newRequest.jsp");
         dispatcher.forward(request, response);
     }
@@ -134,6 +139,13 @@ public class AidRequestServlet extends HttpServlet {
                      } catch (NumberFormatException e) { e.printStackTrace(); }
                  }
              }
+             
+             // ==========================================
+             // TRIGGER 1: Notify Approval Officer
+             // ==========================================
+             NotificationDAO notifDAO = new NotificationDAO();
+             notifDAO.sendToRole("Approval Officer", "New Aid Request [" + newRequestID + "] submitted by " + currentUser.getUserName() + " for Shelter " + currentUser.getAssignedRegion() + ".");
+             
              response.sendRedirect("listRequest?msg=Success");
         } else {
              response.sendRedirect("listRequest?error=Failed");
@@ -154,9 +166,12 @@ public class AidRequestServlet extends HttpServlet {
         }
 
         HttpSession session = request.getSession();
+        User currentUser = (User) session.getAttribute("currentUser");
         session.setAttribute("tempRequestItems", dbItems); 
         
-        List<InventoryItem> inventoryList = inventoryDAO.selectAllItems();
+        // FIXED: Passed the assigned region to fetch shelter-specific items
+        List<InventoryItem> inventoryList = inventoryDAO.selectAllItems(currentUser.getAssignedRegion());
+        
         request.setAttribute("inventoryList", inventoryList);
         request.setAttribute("aidRequest", aidRequest);
         
@@ -259,7 +274,6 @@ public class AidRequestServlet extends HttpServlet {
                     }
 
                     // RULE B: WARNING (If Remaining Stock < Threshold)
-                    // Logic: If Effective Stock (minus this new request) < Threshold
                     int futureRemaining = effectiveStock - requested;
                     if (futureRemaining < threshold) {
                         if (warningMsg.length() > 0) warningMsg.append(", ");
@@ -272,6 +286,24 @@ public class AidRequestServlet extends HttpServlet {
 
         // 2. UPDATE STATUS IN DB (Only if validation passed)
         aidRequestDAO.processApproval(requestId, status, currentUser.getUserID(), remark);
+        
+        // ==========================================
+        // TRIGGER 2: Notify Requester and Logistics
+        // ==========================================
+        NotificationDAO notifDAO = new NotificationDAO();
+        AidRequest originalReq = aidRequestDAO.selectAidRequest(requestId);
+        
+        if (originalReq != null) {
+            String originalRequesterID = originalReq.getRequestedBy();
+            
+            if ("Approved".equalsIgnoreCase(status)) {
+                notifDAO.sendToUser(originalRequesterID, "Your Aid Request [" + requestId + "] has been APPROVED.");
+                notifDAO.sendToRole("Logistic Staff", "Aid Request [" + requestId + "] approved. Ready for packing.");
+            } else if ("Rejected".equalsIgnoreCase(status)) {
+                String rejectReason = (remark != null && !remark.isEmpty()) ? " Reason: " + remark : "";
+                notifDAO.sendToUser(originalRequesterID, "Your Aid Request [" + requestId + "] was REJECTED." + rejectReason);
+            }
+        }
         
         // 3. PREPARE REDIRECT URL
         String redirectUrl = "viewRequest?id=" + requestId + "&msg=" + status + "Successfully";

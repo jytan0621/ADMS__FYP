@@ -129,29 +129,27 @@
 </head>
 <body>
 
-    <header class="fixed-header">
-        <div style="display: flex; align-items: center; gap: 12px;">
-            <img src="Image/Logo_ADMS.png" alt="Logo" style="height:24px;">
-            <span style="font-size: 20px; font-weight: bold; letter-spacing: 0.5px;">ADMS</span>
-        </div>
-        <div style="font-weight: 500; font-size: 14px; background: rgba(255,255,255,0.1); padding: 4px 12px; border-radius: 4px;">
-            <%= currentUser.getUserName() %> | <%= currentUser.getRole().toUpperCase() %>
-        </div>
-    </header>
-
-    <div class="sidebar-container">
-        <jsp:include page="Sidebar.jsp" />
-    </div>
-
+    <div class="sidebar-container"><jsp:include page="Sidebar.jsp" /></div>
+    <jsp:include page="Headbar.jsp" />
     <div class="main-content-scrollable">
         <div class="form-card">
             
             <% 
                 String error = request.getParameter("error");
-                if ("AlreadyRegistered".equals(error)) {
+                if (error != null && !error.isEmpty()) {
+                    String errorMsg = "";
+                    if ("AlreadyRegistered".equals(error)) {
+                        errorMsg = "⚠️ This IC Number is already registered and currently active in our system.";
+                    } else if ("NoShelterFoundForRegion".equals(error)) {
+                        errorMsg = "⚠️ <b>System Error:</b> No shelter found matching your assigned staff region. Please check your user profile settings.";
+                    } else if ("ShelterFull".equals(error)) {
+                        errorMsg = "⚠️ <b>Capacity Error:</b> There are not enough available tents in your assigned shelter to accommodate this household size.";
+                    } else {
+                        errorMsg = "⚠️ <b>Unknown Error:</b> " + error;
+                    }
             %>
                 <div style="background-color: #fee2e2; color: #dc2626; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: bold; border: 1px solid #fecaca; text-align: center;">
-                    ⚠️ This IC Number is already registered and currently active in our system. 
+                    <%= errorMsg %>
                 </div>
             <% } %>
 

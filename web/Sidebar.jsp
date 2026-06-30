@@ -51,8 +51,10 @@
             <a class="menu-title" href="MainMenuServlet?menu=report">Review Reports</a>
             <% if ("report".equals(activeMenu)) { %>
             <div class="submenu">
-                <a href="occupancyReport.jsp">Shelter Capacity</a>
-                <a href="floodAnalysis.jsp">Flood Level Impact</a>
+                <a href="reportBeneficiary" class="menu-item"><i class="fas fa-users"></i> Beneficiary Report</a>
+                <a href="reportInventory" class="menu-item"><i class="fas fa-boxes-stacked"></i> Inventory Asset Report</a>
+                <a href="reportDistribution" class="menu-item"><i class="fas fa-hand-holding-heart"></i> Distribution Logs Report</a>
+                <a href="reportArchive" class="menu-item"><i class="fas fa-hand-holding-heart"></i> Disaster Activation Archive</a>
             </div>
             <% } %>
         <% } %>
@@ -69,17 +71,25 @@
             <a class="menu-title" href="MainMenuServlet?menu=inventory">Inventory Item</a>
             <% if ("inventory".equals(activeMenu)) { %>
             <div class="submenu">
-                <a href="itemList.jsp">Item List</a>
-                <a href="ingoing.jsp">Ingoing List</a>
-                <a href="outgoing.jsp">Outgoing List</a>
-                <a href="restock.jsp">Restock List</a>
-                <a href="supplier.jsp">Supplier List</a>
-                <a href="driver.jsp">Driver List</a>
+                <a href="listInventory">Item List</a>
+                <a href="listIngoing">In Stock List</a>
+                <a href="listOutgoing">Out Stock List</a>
+                <a href="restockApprovals">Restock List</a>
+                <a href="listSupplier">Supplier List</a>
+                <a href="listDriver">Driver List</a>
             </div>
             <% } %>
 
             <a class="menu-title" href="MainMenuServlet?menu=report">Report</a>
-            <a class="menu-title" href="MainMenuServlet?menu=message">Message</a>
+            <% if ("report".equals(activeMenu)) { %>
+            <div class="submenu">
+                <a href="reportBeneficiary" class="menu-item"><i class="fas fa-users"></i> Beneficiary Report</a>
+                <a href="reportInventory" class="menu-item"><i class="fas fa-boxes-stacked"></i> Inventory Asset Report</a>
+                <a href="reportDistribution" class="menu-item"><i class="fas fa-hand-holding-heart"></i> Distribution Logs Report</a>
+            </div>
+            <% } %>
+    
+            <a class="menu-title" href="Chat">Message</a>
         <% } %>
 
         <% if ("Approval Officer".equals(role)) { %>
@@ -87,12 +97,13 @@
             <a class="menu-title" href="MainMenuServlet?menu=inventory">Inventory</a>
             <% if ("inventory".equals(activeMenu)) { %>
             <div class="submenu">
-                <a href="itemList.jsp">Item List</a>
-                <a href="ingoing.jsp">Ingoing List</a>
-                <a href="restock.jsp">Restock List</a>
+                <a href="listInventory">Item List</a>
+                <a href="listIngoing">In Stock List</a>
+                <a href="listOutgoing">Out Stock List</a>
+                <a href="restockApprovals">Restock List</a>
             </div>
             <% } %>
-            <a class="menu-title" href="MainMenuServlet?menu=message">Message</a>
+            <a class="menu-title" href="Chat">Message</a>
         <% } %>
 
         <% if ("Field Officer".equals(role)) { %>
@@ -106,30 +117,30 @@
             <a class="menu-title" href="MainMenuServlet?menu=aid">Aid Request</a>
             <% if ("aid".equals(activeMenu)) { %>
             <div class="submenu">
-                <a href="newRequest.jsp">New Request</a>
+                <a href="newRequest">New Request</a>
                 <a href="listRequest">Manage List</a>
+                <a href="DistributionRulesServlet">Manage Distribution Item</a>
+                <a href="InventoryForecastServlet">Stock Forecast</a>
+                <a href="DistributionHistoryServlet">Distribution Log Book</a>
             </div>
             <% } %>
-            <a class="menu-title" href="MainMenuServlet?menu=message">Message</a>
+            <a class="menu-title" href="Chat">Message</a>
         <% } %>
 
         <% if ("Logistic Staff".equals(role)) { %>
             <a class="menu-title" href="MainMenuServlet?menu=inventory">Inventory Item</a>
             <% if ("inventory".equals(activeMenu)) { %>
             <div class="submenu">
-                <a href="itemList.jsp">Item List</a>
-                <a href="newItem.jsp">New Item</a>
-                <a href="ingoing.jsp">Ingoing List</a>
-                <a href="newIngoing.jsp">New Ingoing</a>
-                <a href="outgoing.jsp">Outgoing List</a>
-                <a href="newOutgoing.jsp">New Outgoing</a>
-                <a href="restock.jsp">Restock List</a>
-                <a href="newRestock.jsp">New Restock</a>
-                <a href="supplier.jsp">Supplier List</a>
-                <a href="driver.jsp">Driver List</a>
+                <a href="listInventory">Item List</a>
+                <a href="listIngoing">In Stock List</a>
+                <a href="listOutgoing">Out Stock List</a>
+                <a href="distributionCenter">Pending Distribution</a>
+                <a href="listRestock">Restock List</a>
+                <a href="listSupplier">Supplier List</a>
+                <a href="listDriver">Driver List</a>
             </div>
             <% } %>
-            <a class="menu-title" href="MainMenuServlet?menu=message">Message</a>
+            <a class="menu-title" href="Chat">Message</a>
         <% } %>
 
     </div> <div class="logout-section">

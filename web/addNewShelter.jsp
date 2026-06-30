@@ -121,19 +121,8 @@
 </head>
 <body>
 
-    <header class="fixed-header">
-        <div style="display:flex; align-items:center; gap:12px;">
-            <img src="Image/Logo_ADMS.png" alt="Logo" style="height:24px;">
-            <span style="font-size: 20px; font-weight: bold; letter-spacing: -0.5px;">ADMS</span>
-        </div>
-        <div class="font-medium text-sm bg-white-10">
-            <%= currentUser.getUserName() %> | <%= currentUser.getRole().toUpperCase() %>
-        </div>
-    </header>
-
-    <div class="sidebar-container">
-        <jsp:include page="Sidebar.jsp" />
-    </div>
+    <div class="sidebar-container"><jsp:include page="Sidebar.jsp" /></div>
+    <jsp:include page="Headbar.jsp" />
 
     <div class="main-content-scrollable">
         <div class="profile-card">

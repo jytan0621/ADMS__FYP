@@ -33,13 +33,13 @@ public class MainMenuServlet extends HttpServlet {
                 response.sendRedirect("BeneficiaryAnalysis");
                 break;
             case "inventory":
-                response.sendRedirect("inventoryMain.jsp");
+                response.sendRedirect("logisticsDashboard");
                 break;
             case "aid":
                 response.sendRedirect("listRequest");
                 break;
             case "report":
-                response.sendRedirect("report.jsp");
+                response.sendRedirect("adminReports");
                 break;
             case "message":
                 response.sendRedirect("inbox.jsp");

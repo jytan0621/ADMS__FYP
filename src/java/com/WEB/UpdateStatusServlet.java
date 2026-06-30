@@ -51,6 +51,6 @@ public class UpdateStatusServlet extends HttpServlet {
         }
 
         // 6. Redirect back to User List to see the change
-        response.sendRedirect("userList.jsp");
+        response.sendRedirect("list");
     }
 }

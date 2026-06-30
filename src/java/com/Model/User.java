@@ -18,11 +18,13 @@ public class User {
     protected String CreatedAt;
     protected String Status;
     private String profilePicture;
+    private String shelterName;
+    private String location;
     
     public User() {
     }
 
-    public User(String UserID, String UserName, String Email, String Password, String Role, String AssignedRegion, String CreatedAt, String Status, String profilePicture) {
+    public User(String UserID, String UserName, String Email, String Password, String Role, String AssignedRegion, String CreatedAt, String Status, String profilePicture, String shelterName) {
         this.UserID = UserID;
         this.UserName = UserName;
         this.Email = Email;
@@ -32,6 +34,19 @@ public class User {
         this.CreatedAt = CreatedAt;
         this.Status = Status;
         this.profilePicture = profilePicture;
+        this.shelterName = shelterName;
+    }
+
+    public User(String UserID, String UserName, String Email, String Password, String Role, String AssignedRegion, String shelterName, String CreatedAt, String Status) {
+        this.UserID = UserID;
+        this.UserName = UserName;
+        this.Email = Email;
+        this.Password = Password;
+        this.Role = Role;
+        this.AssignedRegion = AssignedRegion;
+        this.shelterName = shelterName;
+        this.CreatedAt = CreatedAt;
+        this.Status = Status;
     }
 
     public User(String UserID, String UserName, String Email, String Password, String Role, String AssignedRegion, String CreatedAt, String Status) {
@@ -44,8 +59,7 @@ public class User {
         this.CreatedAt = CreatedAt;
         this.Status = Status;
     }
-
-
+    
     public String getUserID() {
         return UserID;
     }
@@ -116,5 +130,20 @@ public class User {
 
     public void setProfilePicture(String profilePicture) {
         this.profilePicture = profilePicture;
+    }
+    public String getShelterName() {
+        return shelterName;
+    }
+
+    public void setShelterName(String shelterName) {
+        this.shelterName = shelterName;
+    }
+    
+    public String getLocation() {
+        return location;
+    }
+
+    public void setLocation(String location) {
+        this.location = location;
     }
 }

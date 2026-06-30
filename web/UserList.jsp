@@ -159,36 +159,27 @@
 </head>
 <body>
 
-    <header class="fixed-header">
-        <div class="flex items-center gap-3">
-            <img src="Image/Logo_ADMS.png" alt="Logo" style="height:24px;">
-            <span class="text-xl font-bold tracking-tight">ADMS</span>
-        </div>
-        <div class="font-medium text-sm bg-white/10 px-3 py-1 rounded">
-            <%= currentUser.getUserName() %> | <%= currentUser.getRole().toUpperCase() %>
-        </div>
-    </header>
-
-    <div class="sidebar-container">
-        <jsp:include page="Sidebar.jsp" />
-    </div>
+    <div class="sidebar-container"><jsp:include page="Sidebar.jsp" /></div>
+    <jsp:include page="Headbar.jsp" />
 
     <div class="main-content-view">
         
         <div class="page-header">
             <h2>User List</h2>
-            <a href="UserForm.jsp" class="btn-add">+ Add New User</a>
+            <%-- FIXED: Route to the servlet "new", not the JSP directly! --%>
+            <a href="new" class="btn-add">+ Add New User</a>
         </div>
 
         <div class="table-card">
             <table class="user-table">
                 <thead>
                     <tr>
-                        <th>ID</th>
+                        <th>No.</th>
                         <th>Username</th>
                         <th>Email</th>
                         <th>Role</th>
                         <th>Region</th>
+                        <th>Shelter Name</th>
                         <th>Status</th>
                         <th>Created At</th>
                         <th>Actions</th>
@@ -196,20 +187,25 @@
                 </thead>
                 <tbody>
                     <% 
+                       // FIXED: Declared the count variable so the page doesn't crash!
+                       int count = 1;
+                       
                        if (userList.isEmpty()) { 
                     %>
-                        <tr><td colspan="8" style="text-align:center; padding: 30px; color: #94a3b8;">No users found in the database.</td></tr>
+                        <tr><td colspan="9" style="text-align:center; padding: 30px; color: #94a3b8;">No users found in the database.</td></tr>
                     <% 
                        } else {
                            for(User u : userList) { 
                                boolean isActive = "Active".equalsIgnoreCase(u.getStatus());
                     %>
                         <tr>
-                            <td style="font-weight:bold; color:#64748b;">#<%= u.getUserID() %></td>
+                            <%-- FIXED: Removed the extra ">" symbol --%>
+                            <td style="font-weight:bold; color:#64748b;"><%= count++ %></td>
                             <td style="font-weight:600;"><%= u.getUserName() %></td>
                             <td><%= u.getEmail() %></td>
                             <td><%= u.getRole() %></td>
-                            <td><%= u.getAssignedRegion() %></td>
+                            <td><%= u.getLocation() %></td>
+                            <td><%= u.getShelterName() %></td>
                             
                             <td>
                                 <span class="status <%= isActive ? "status-active" : "status-inactive" %>">
@@ -220,7 +216,8 @@
                             <td style="color:#64748b; font-size:13px;"><%= u.getCreatedAt() %></td>
                             
                             <td>
-                                <a href="EditAdminForm.jsp?id=<%= u.getUserID() %>" class="action-link edit-link">Edit</a>
+                                <%-- FIXED: Route to the servlet "editadmin", not the JSP directly! --%>
+                                <a href="editadmin?id=<%= u.getUserID() %>" class="action-link edit-link">Edit</a>
 
                                 <% if (isActive) { %>
                                     <a href="UpdateStatusServlet?id=<%= u.getUserID() %>&newStatus=Inactive" 
