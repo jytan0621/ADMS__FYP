@@ -8,6 +8,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import com.WEB.BCrypt;
 
 public class UserDAO {
     String jdbcURL = "jdbc:mysql://localhost:3306/adms";
@@ -26,8 +27,9 @@ public class UserDAO {
     private static final String SELECT_ALL_USERS_GLOBAL_SQL = 
         "SELECT u.*, s.ShelterName, CONCAT(a.City, ', ', a.State) AS Location FROM userprofile u LEFT JOIN shelter s ON u.AssignedRegion = s.ShelterID LEFT JOIN address a ON s.Postcode = a.Postcode";
         
+    // 🌟 CHANGED: Removed "AND u.Password = ?" because we need to check the hash in Java now
     private static final String LOGIN_SQL = 
-        "SELECT u.*, s.ShelterName, CONCAT(a.City, ', ', a.State) AS Location FROM userprofile u LEFT JOIN shelter s ON u.AssignedRegion = s.ShelterID LEFT JOIN address a ON s.Postcode = a.Postcode WHERE u.Email = ? AND u.Password = ?";
+        "SELECT u.*, s.ShelterName, CONCAT(a.City, ', ', a.State) AS Location FROM userprofile u LEFT JOIN shelter s ON u.AssignedRegion = s.ShelterID LEFT JOIN address a ON s.Postcode = a.Postcode WHERE u.Email = ?";
     
     private static final String USER_UPDATE_SQL="update userprofile set UserName=?, Email=?, ProfilePicture=? where userID=?";
     private static final String ADMIN_UPDATE_SQL="update userprofile set Role=?, AssignedRegion=?, Status= ? where userID=?";
@@ -72,9 +74,9 @@ public class UserDAO {
                  String Email = rs.getString("Email");
                  String Password = rs.getString("Password");
                  String Role = rs.getString("Role");
-                 String AssignedRegion = rs.getString("AssignedRegion"); // 保持 SH0001 以供 Update 使用
-                 String ShelterName = rs.getString("ShelterName"); // 庇护所名字
-                 String Location = rs.getString("Location");       // 地理位置
+                 String AssignedRegion = rs.getString("AssignedRegion"); 
+                 String ShelterName = rs.getString("ShelterName"); 
+                 String Location = rs.getString("Location");       
                  String CreatedAt = rs.getString("CreatedAt");
                  String Status = rs.getString("Status");
                  
@@ -84,7 +86,7 @@ public class UserDAO {
                  user = new User(UserID, UserName, Email, Password, Role, AssignedRegion, CreatedAt, Status);
                  user.setProfilePicture(ProfilePicture);
                  user.setShelterName(ShelterName != null ? ShelterName : "-");
-                 user.setLocation(Location != null ? Location : AssignedRegion); // 存入 Location
+                 user.setLocation(Location != null ? Location : AssignedRegion); 
              }
          }catch (SQLException e){ printSQLException(e); }
          return user;
@@ -139,7 +141,7 @@ public class UserDAO {
         try (Connection connection = getConnection();
                 PreparedStatement statement=connection.prepareStatement(ADMIN_UPDATE_SQL);){
             statement.setString(1,user.getRole());
-            statement.setString(2,user.getAssignedRegion()); // 这里依然安全地保存 SH0001
+            statement.setString(2,user.getAssignedRegion()); 
             statement.setString(3,user.getStatus());
             statement.setString(4,user.getUserID());
             rowUpdated = statement.executeUpdate()>0;
@@ -158,32 +160,55 @@ public class UserDAO {
         return rowUpdated;
     }
     
-    public User login(String email, String password) {
+    // 🌟 UPDATED LOGIN METHOD: Fixes the PHP and Plain Text password crashes
+    public User login(String email, String plainPassword) {
         User user = null;
         try (Connection con = getConnection();
              PreparedStatement ps = con.prepareStatement(LOGIN_SQL)) {
+            
             ps.setString(1, email);
-            ps.setString(2, password);
             ResultSet rs = ps.executeQuery();
+            
             if (rs.next()) {
-                String userID = rs.getString("UserID");
-                String userName = rs.getString("UserName");
-                String role = rs.getString("Role");
-                String assignedRegion = rs.getString("AssignedRegion");
-                String shelterName = rs.getString("ShelterName");
-                String location = rs.getString("Location");
-                String createdAt = rs.getString("CreatedAt");
-                String status = rs.getString("Status");
+                String dbHashedPassword = rs.getString("Password");
                 
-                String pic = rs.getString("ProfilePicture");
-                if(pic == null) pic = "default-avatar.png";
+                // 🌟 FIX 1: Convert PHP $2y$ prefix to Java $2a$ prefix
+                if (dbHashedPassword != null && dbHashedPassword.startsWith("$2y$")) {
+                    dbHashedPassword = "$2a$" + dbHashedPassword.substring(4);
+                }
+                
+                boolean passwordsMatch = false;
+                
+                // 🌟 FIX 2: Catch Invalid salt errors so the server doesn't crash
+                try {
+                    passwordsMatch = BCrypt.checkpw(plainPassword, dbHashedPassword);
+                } catch (IllegalArgumentException e) {
+                    System.out.println("Skipped login: Invalid password hash in DB for user " + email);
+                    passwordsMatch = false;
+                }
+                
+                if (passwordsMatch) {
+                    String userID = rs.getString("UserID");
+                    String userName = rs.getString("UserName");
+                    String role = rs.getString("Role");
+                    String assignedRegion = rs.getString("AssignedRegion");
+                    String shelterName = rs.getString("ShelterName");
+                    String location = rs.getString("Location");
+                    String createdAt = rs.getString("CreatedAt");
+                    String status = rs.getString("Status");
+                    
+                    String pic = rs.getString("ProfilePicture");
+                    if(pic == null) pic = "default-avatar.png";
 
-                user = new User(userID, userName, email, password, role, assignedRegion, createdAt, status);
-                user.setProfilePicture(pic);
-                user.setShelterName(shelterName != null ? shelterName : "-");
-                user.setLocation(location != null ? location : assignedRegion);
+                    user = new User(userID, userName, email, dbHashedPassword, role, assignedRegion, createdAt, status);
+                    user.setProfilePicture(pic);
+                    user.setShelterName(shelterName != null ? shelterName : "-");
+                    user.setLocation(location != null ? location : assignedRegion);
+                }
             }
-        } catch (SQLException e) { e.printStackTrace(); }
+        } catch (SQLException e) { 
+            e.printStackTrace(); 
+        }
         return user;
     }
     
