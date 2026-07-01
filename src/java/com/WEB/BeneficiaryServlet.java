@@ -1,8 +1,10 @@
 package com.WEB;
 
 import com.DAO.BeneficiaryDAO;
+import com.DAO.ShelterDAO;          // CRITICAL: Ensure this is imported
 import com.Model.Beneficiary;
 import com.Model.Household;
+import com.Model.Shelter;           // CRITICAL: Ensure this is imported
 import com.Model.User;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -40,7 +42,8 @@ import javax.servlet.http.HttpSession;
     "/publicRemoveHouseholdFromSession",
     "/addHouseholdToSession",
     "/removeHouseholdFromSession",
-    "/insertHouseholdReturnToEdit"
+    "/insertHouseholdReturnToEdit",
+    "/showPublicRegister"
 })
 public class BeneficiaryServlet extends HttpServlet {
     
@@ -137,6 +140,9 @@ public class BeneficiaryServlet extends HttpServlet {
                case "/publicRemoveHouseholdFromSession":
                     publicRemoveHouseholdFromSession(request, response);
                     break;
+                case "/showPublicRegister":
+                    showPublicNewBeneficiary(request, response);
+                    break;
                 default:
                     listBeneficiary(request, response);
                     break;
@@ -170,20 +176,11 @@ public class BeneficiaryServlet extends HttpServlet {
     }
     
     private void publicInsertBeneficiary(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException, SQLException {
-        String postcodeStr = request.getParameter("ShelterPostcode");
-        String shelterID = null;
+        // UPDATED: Now receives the ShelterID directly from the dropdown list
+        String shelterID = request.getParameter("ShelterID");
 
-        try {
-            int shelterPostcode = Integer.parseInt(postcodeStr);
-            // Uses the Postcode method
-            shelterID = beneficiaryDAO.getShelterIDByPostcode(shelterPostcode);
-        } catch (NumberFormatException e) {
-            response.sendRedirect("publicNewBeneficiary.jsp?error=InvalidPostcodeFormat");
-            return;
-        }
-
-        if (shelterID == null) { 
-            response.sendRedirect("publicNewBeneficiary.jsp?error=InvalidShelterPostcode"); 
+        if (shelterID == null || shelterID.trim().isEmpty()) { 
+            response.sendRedirect("publicNewBeneficiary.jsp?error=InvalidShelterSelection"); 
             return; 
         }
 
@@ -644,7 +641,7 @@ public class BeneficiaryServlet extends HttpServlet {
     }
     
     // =========================================================================
-    //                             PUBLIC / SELF REGISTRATION METHODS
+    //                               PUBLIC / SELF REGISTRATION METHODS
     // =========================================================================
 
     private void publicAddHouseholdToSession(HttpServletRequest request, HttpServletResponse response)
@@ -717,6 +714,27 @@ public class BeneficiaryServlet extends HttpServlet {
                 response.sendRedirect("publicCheckout.jsp?error=No+record+found+for+this+IC");
             }
         }
+
+    private void showPublicNewBeneficiary(HttpServletRequest request, HttpServletResponse response) 
+        throws ServletException, IOException {
+        ShelterDAO shelterDAO = new ShelterDAO();
+        List<Shelter> allShelters = shelterDAO.selectAllShelters();
+        List<Shelter> activeShelters = new ArrayList<>();
+
+        if (allShelters != null) {
+            for(Shelter s : allShelters) {
+                if("Active".equalsIgnoreCase(s.getStatus())) {
+                    activeShelters.add(s);
+                }
+            }
+        }
+
+        System.out.println("DEBUG: Found " + activeShelters.size() + " active shelters.");
+        // ----------------
+
+        request.setAttribute("activeShelters", activeShelters);
+        request.getRequestDispatcher("publicNewBeneficiary.jsp").forward(request, response);
+    }
     
     @Override
     public String getServletInfo() {

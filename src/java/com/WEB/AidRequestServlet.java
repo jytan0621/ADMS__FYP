@@ -101,7 +101,6 @@ public class AidRequestServlet extends HttpServlet {
         HttpSession session = request.getSession();
         User currentUser = (User) session.getAttribute("currentUser");
         
-        // FIXED: Passed the assigned region to fetch shelter-specific items
         List<InventoryItem> items = inventoryDAO.selectAllItems(currentUser.getAssignedRegion()); 
         request.setAttribute("inventoryList", items);
         
@@ -123,32 +122,40 @@ public class AidRequestServlet extends HttpServlet {
             return;
         }
 
-        AidRequest newRequest = new AidRequest();
-        newRequest.setRequestedBy(currentUser.getUserID());
-        String newRequestID = aidRequestDAO.insertAidRequest(newRequest); 
+        try {
+            AidRequest newRequest = new AidRequest();
+            newRequest.setRequestedBy(currentUser.getUserID());
+            String newRequestID = aidRequestDAO.insertAidRequest(newRequest); 
+            newRequest.setShelterID(currentUser.getAssignedRegion());
+            
 
-        if(newRequestID != null) {
-             for (int i = 0; i < itemIds.length; i++) {
-                 if (itemIds[i] != null && !itemIds[i].isEmpty() && quantities[i] != null && !quantities[i].isEmpty()) {
-                     AidRequestItem item = new AidRequestItem();
-                     item.setRequestID(newRequestID);
-                     item.setItemID(itemIds[i]);
-                     try {
-                        item.setArQuantityRequested(Integer.parseInt(quantities[i]));
-                        aidRequestDAO.insertRequestItem(item); 
-                     } catch (NumberFormatException e) { e.printStackTrace(); }
+            if(newRequestID != null && !newRequestID.startsWith("SQL_ERROR")) {
+                 for (int i = 0; i < itemIds.length; i++) {
+                     if (itemIds[i] != null && !itemIds[i].isEmpty() && quantities[i] != null && !quantities[i].isEmpty()) {
+                         AidRequestItem item = new AidRequestItem();
+                         item.setRequestID(newRequestID);
+                         item.setItemID(itemIds[i]);
+                         try {
+                            item.setArQuantityRequested(Integer.parseInt(quantities[i]));
+                            aidRequestDAO.insertRequestItem(item); 
+                         } catch (NumberFormatException e) { e.printStackTrace(); }
+                     }
                  }
-             }
-             
-             // ==========================================
-             // TRIGGER 1: Notify Approval Officer
-             // ==========================================
-             NotificationDAO notifDAO = new NotificationDAO();
-             notifDAO.sendToRole("Approval Officer", "New Aid Request [" + newRequestID + "] submitted by " + currentUser.getUserName() + " for Shelter " + currentUser.getAssignedRegion() + ".");
-             
-             response.sendRedirect("listRequest?msg=Success");
-        } else {
-             response.sendRedirect("listRequest?error=Failed");
+                 
+                 NotificationDAO notifDAO = new NotificationDAO();
+                 notifDAO.sendToRole("Approval Officer", "New Aid Request [" + newRequestID + "] submitted by " + currentUser.getUserName() + " for Shelter " + currentUser.getAssignedRegion() + ".");
+                 
+                 response.sendRedirect("listRequest?msg=Success");
+            } else {
+                 String errorMsg = (newRequestID != null) ? newRequestID : "Database Insert Failed";
+                 response.sendRedirect("listRequest?error=" + java.net.URLEncoder.encode(errorMsg, "UTF-8"));
+            }
+        // 🚨 WE ARE NOW CATCHING THE SERVER CRASH EXCEPTION HERE
+        } catch (Exception e) {
+            e.printStackTrace(); // Keep it in the logs
+            // Extract the message, clean it so it doesn't break the URL, and send to the UI
+            String cleanError = e.getMessage() != null ? e.getMessage().replace("\"", "'").replace("\n", " ") : "Unknown DB Error";
+            response.sendRedirect("listRequest?error=" + java.net.URLEncoder.encode(cleanError, "UTF-8"));
         }
     }
 
@@ -169,7 +176,6 @@ public class AidRequestServlet extends HttpServlet {
         User currentUser = (User) session.getAttribute("currentUser");
         session.setAttribute("tempRequestItems", dbItems); 
         
-        // FIXED: Passed the assigned region to fetch shelter-specific items
         List<InventoryItem> inventoryList = inventoryDAO.selectAllItems(currentUser.getAssignedRegion());
         
         request.setAttribute("inventoryList", inventoryList);
@@ -184,28 +190,33 @@ public class AidRequestServlet extends HttpServlet {
             throws ServletException, IOException, SQLException {
         String requestID = request.getParameter("requestID");
         
-        aidRequestDAO.deleteItemsByRequestID(requestID);
-        
-        String[] itemIds = request.getParameterValues("itemId");
-        String[] quantities = request.getParameterValues("quantity");
+        try {
+            aidRequestDAO.deleteItemsByRequestID(requestID);
+            
+            String[] itemIds = request.getParameterValues("itemId");
+            String[] quantities = request.getParameterValues("quantity");
 
-        if (itemIds != null) {
-            for (int i = 0; i < itemIds.length; i++) {
-                 if (itemIds[i] != null && !itemIds[i].isEmpty()) {
-                     AidRequestItem item = new AidRequestItem();
-                     item.setRequestID(requestID);
-                     item.setItemID(itemIds[i]);
-                     try {
-                        item.setArQuantityRequested(Integer.parseInt(quantities[i]));
-                        aidRequestDAO.insertRequestItem(item); 
-                     } catch (NumberFormatException e) { e.printStackTrace(); }
-                 }
+            if (itemIds != null) {
+                for (int i = 0; i < itemIds.length; i++) {
+                     if (itemIds[i] != null && !itemIds[i].isEmpty()) {
+                         AidRequestItem item = new AidRequestItem();
+                         item.setRequestID(requestID);
+                         item.setItemID(itemIds[i]);
+                         try {
+                            item.setArQuantityRequested(Integer.parseInt(quantities[i]));
+                            aidRequestDAO.insertRequestItem(item); 
+                         } catch (NumberFormatException e) { e.printStackTrace(); }
+                     }
+                }
             }
+            
+            HttpSession session = request.getSession();
+            session.removeAttribute("tempRequestItems");
+            response.sendRedirect("viewRequest?id=" + requestID + "&msg=UpdatedSuccessfully");
+        } catch (Exception e) {
+            String cleanError = e.getMessage() != null ? e.getMessage().replace("\"", "'").replace("\n", " ") : "Unknown DB Error";
+            response.sendRedirect("listRequest?error=" + java.net.URLEncoder.encode(cleanError, "UTF-8"));
         }
-        
-        HttpSession session = request.getSession();
-        session.removeAttribute("tempRequestItems");
-        response.sendRedirect("viewRequest?id=" + requestID + "&msg=UpdatedSuccessfully");
     }
 
     // --- VIEW ---
@@ -244,15 +255,11 @@ public class AidRequestServlet extends HttpServlet {
         StringBuilder warningMsg = new StringBuilder();
         boolean hasThresholdWarning = false;
 
-        // 1. VALIDATION LOGIC (Only runs if status is 'Approved')
         if ("Approved".equalsIgnoreCase(status)) {
             List<AidRequestItem> items = aidRequestDAO.selectItemsByRequestID(requestId);
             
             for (AidRequestItem reqItem : items) {
-                // Get Physical Data from Inventory Table
                 InventoryItem stockItem = inventoryDAO.selectItemByID(reqItem.getItemID());
-                
-                // Get Reserved Data (Approved but not completed)
                 int reservedQty = aidRequestDAO.getReservedStock(reqItem.getItemID());
                 
                 if (stockItem != null) {
@@ -260,10 +267,8 @@ public class AidRequestServlet extends HttpServlet {
                     int physicalStock = stockItem.getQuantityAvailable();
                     int threshold = stockItem.getThreshold();
                     
-                    // Effective Stock = Physical - Reserved
                     int effectiveStock = physicalStock - reservedQty; 
                     
-                    // RULE A: BLOCK Action (If Request > Effective Stock)
                     if (requested > effectiveStock) {
                         String errorMsg = "Insufficient Stock for " + stockItem.getIName() + 
                                           ". (Physical: " + physicalStock + ", Reserved: " + reservedQty + 
@@ -273,7 +278,6 @@ public class AidRequestServlet extends HttpServlet {
                         return; 
                     }
 
-                    // RULE B: WARNING (If Remaining Stock < Threshold)
                     int futureRemaining = effectiveStock - requested;
                     if (futureRemaining < threshold) {
                         if (warningMsg.length() > 0) warningMsg.append(", ");
@@ -284,12 +288,8 @@ public class AidRequestServlet extends HttpServlet {
             }
         }
 
-        // 2. UPDATE STATUS IN DB (Only if validation passed)
         aidRequestDAO.processApproval(requestId, status, currentUser.getUserID(), remark);
         
-        // ==========================================
-        // TRIGGER 2: Notify Requester and Logistics
-        // ==========================================
         NotificationDAO notifDAO = new NotificationDAO();
         AidRequest originalReq = aidRequestDAO.selectAidRequest(requestId);
         
@@ -305,10 +305,8 @@ public class AidRequestServlet extends HttpServlet {
             }
         }
         
-        // 3. PREPARE REDIRECT URL
         String redirectUrl = "viewRequest?id=" + requestId + "&msg=" + status + "Successfully";
         
-        // 4. APPEND WARNING IF NEEDED
         if (hasThresholdWarning) {
             String warn = "System Notification: Stock for [" + warningMsg.toString() + "] is below threshold!";
             redirectUrl += "&warning=" + java.net.URLEncoder.encode(warn, "UTF-8");

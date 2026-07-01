@@ -1,18 +1,15 @@
 <%-- Document: publicNewBeneficiary.jsp --%>
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@ page import="com.Model.Household, java.util.*" %>
+<%@ page import="com.DAO.ShelterDAO" %>
+<%@ page import="com.Model.Shelter" %>
 
 <%
-    // 1. KILL BROWSER CACHING (Forces the server to recalculate household size every time)
-    response.setHeader("Cache-Control", "no-cache, no-store, must-revalidate"); 
-    response.setHeader("Pragma", "no-cache"); 
-    response.setDateHeader("Expires", 0); 
+    List<Shelter> activeShelters = (List<Shelter>) request.getAttribute("activeShelters");
+    if (activeShelters == null) activeShelters = new ArrayList<>();
 
-    // 2. Get Household List from the session
     List<Household> householdList = (List<Household>) session.getAttribute("tempHouseholdList");
     if (householdList == null) householdList = new ArrayList<>();
-    
-    // 3. AUTO-CALCULATE SIZE: 1 (Main Applicant) + List Size
     int householdSize = 1 + householdList.size();
 %>
 
@@ -83,9 +80,9 @@
                 <div class="alert-box alert-error">
                     ⚠️ This IC Number is already registered and currently active in our system. 
                 </div>
-            <% } else if ("InvalidShelterPostcode".equals(error) || "InvalidPostcodeFormat".equals(error)) { %>
+            <% } else if ("InvalidShelterSelection".equals(error)) { %>
                 <div class="alert-box alert-error">
-                    ⚠️ Invalid Shelter Postcode. We could not find a shelter matching that postcode. 
+                    ⚠️ Invalid Shelter Selection. Please select a valid shelter from the list. 
                 </div>
             <% } else if ("ShelterFull".equals(error)) { %>
                 <div class="alert-box alert-error">
@@ -98,13 +95,23 @@
                 <p class="page-subtitle">Submit your details to receive an assigned tent and supplies.</p>
             </div>
 
-            <form id="publicBeneForm" action="publicInsertBeneficiary" method="POST">
+            <form id="publicBeneForm" action="${pageContext.request.contextPath}/publicInsertBeneficiary" method="POST">
                 
+                <%-- UPDATED: Dropdown list for shelters instead of postcode --%>
                 <div class="form-grid" style="background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 25px;">
                     <div class="form-group full-width">
-                        <label class="form-label" style="color: #0b5ea8; font-size: 16px;">📍 Current Shelter Location</label>
-                        <p style="margin: 0 0 10px 0; font-size: 13px; color: #64748b;">Please enter the postcode of the shelter you are currently staying at (Ask a volunteer if unsure).</p>
-                        <input type="number" name="ShelterPostcode" class="form-input" required placeholder="e.g., 21030" style="border-color: #0b5ea8; border-width: 2px;">
+                        <label class="form-label" style="color: #0b5ea8; font-size: 16px;">📍 Current Shelter Location <span style="color:red;">*</span></label>
+                        <p style="margin: 0 0 10px 0; font-size: 13px; color: #64748b;">Please select the shelter you are currently staying at.</p>
+                        <select name="ShelterID" class="form-input" required style="border-color: #0b5ea8; border-width: 2px;">
+                            <option value="" disabled selected>-- Select a Shelter --</option>
+                            <% if (activeShelters != null && !activeShelters.isEmpty()) { 
+                                for(Shelter s : activeShelters) { %>
+                                    <option value="<%= s.getShelterID() %>"><%= s.getShelterName() %> - <%= s.getState() %> (<%= s.getPostcode() %>)</option>
+                            <%  } 
+                               } else { %>
+                                    <option value="" disabled>No active shelters available</option>
+                            <% } %>
+                        </select>
                     </div>
                 </div>
 
@@ -229,14 +236,14 @@
                                         <td><%= h.getH_IC() %></td>
                                         <td><%= h.getH_Relationship() %></td>
                                         <td style="text-align:center;">
-                                            <a href="publicRemoveHouseholdFromSession?index=<%= i %>" class="btn-delete">Remove</a>
+                                            <a href="${pageContext.request.contextPath}/publicRemoveHouseholdFromSession?index=<%= i %>" class="btn-delete">Remove</a>
                                         </td>
                                     </tr>
                                 <% } } %>
                             </tbody>
                         </table>
                     </div>
-                    <a href="publicNewHousehold.jsp" class="btn-add-row">+ Add Family Member</a>
+                    <a href="${pageContext.request.contextPath}/publicNewHousehold.jsp" class="btn-add-row">+ Add Family Member</a>
                 </div>
 
                 <button type="submit" class="btn-action" style="margin-top: 40px;">Submit Registration</button>
@@ -332,7 +339,7 @@
         function fetchAddress() {
             const pcode = document.getElementById("postcode").value;
             if(!pcode) return;
-            fetch("PostcodeLookupServlet?postcode=" + pcode)
+            fetch("${pageContext.request.contextPath}/PostcodeLookupServlet?postcode=" + pcode)
                 .then(res => res.json())
                 .then(d => {
                     if(d.found) {

@@ -11,9 +11,14 @@ import java.util.List;
 import com.WEB.BCrypt;
 
 public class UserDAO {
-    String jdbcURL = "jdbc:mysql://localhost:3306/adms";
+    /*String jdbcURL = "jdbc:mysql://localhost:3306/adms";
     String jdbcUserName = "root";
     String jdbcPassword = "admin";
+    */
+    
+    String jdbcURL = "jdbc:mysql://localhost:3306/s71172_adms";
+    String jdbcUserName = "s71172";
+    String jdbcPassword = "RynnTan0621@";
     
     private static final String INSERT_NEW_USER_SQL="INSERT INTO userprofile(UserName, Email, Password, Role, AssignedRegion, CreatedAt, Status, ProfilePicture) VALUES (?, ?, ?, ?, ?, ?, ?, 'default-avatar.png')";
     

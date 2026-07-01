@@ -14,12 +14,13 @@ public class AidRequest {
     private String arApprovedBy;
     private Date arApprovedDate;
     private String arApprovalRemark;
+    private String shelterID;
 
     // 1. Empty Constructor
     public AidRequest() {
     }
 
-    public AidRequest(String requestID, String requestedBy, String arStatus, Date arDateSubmitted, String arApprovedBy, Date arApprovedDate, String arApprovalRemark) {
+    public AidRequest(String requestID, String requestedBy, String arStatus, Date arDateSubmitted, String arApprovedBy, Date arApprovedDate, String arApprovalRemark, String shelterID) {
         this.requestID = requestID;
         this.requestedBy = requestedBy;
         this.arStatus = arStatus;
@@ -27,7 +28,18 @@ public class AidRequest {
         this.arApprovedBy = arApprovedBy;
         this.arApprovedDate = arApprovedDate;
         this.arApprovalRemark = arApprovalRemark;
+        this.shelterID = shelterID;
     }
+
+    public String getShelterID() {
+        return shelterID;
+    }
+
+    public void setShelterID(String shelterID) {
+        this.shelterID = shelterID;
+    }
+
+    
 
     public String getRequestID() {
         return requestID;

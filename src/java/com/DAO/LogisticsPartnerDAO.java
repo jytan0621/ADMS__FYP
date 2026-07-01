@@ -9,21 +9,24 @@ import java.util.List;
 
 public class LogisticsPartnerDAO {
 
-    private String jdbcURL = "jdbc:mysql://localhost:3306/adms";
-    private String jdbcUsername = "root";
-    private String jdbcPassword = "admin"; // Empty for XAMPP
+    /*String jdbcURL = "jdbc:mysql://localhost:3306/adms";
+    String jdbcUserName = "root";
+    String jdbcPassword = "admin";
+    */
+    
+    String jdbcURL = "jdbc:mysql://localhost:3306/s71172_adms";
+    String jdbcUserName = "s71172";
+    String jdbcPassword = "RynnTan0621@"; 
 
     public LogisticsPartnerDAO() {}
 
     protected Connection getConnection() {
-        Connection connection = null;
         try {
             Class.forName("com.mysql.cj.jdbc.Driver");
-            connection = DriverManager.getConnection(jdbcURL, jdbcUsername, jdbcPassword);
-        } catch (SQLException | ClassNotFoundException e) {
-            e.printStackTrace();
+            return DriverManager.getConnection(jdbcURL, jdbcUserName, jdbcPassword);
+        } catch (Exception e) { 
+            throw new RuntimeException("DB Failed"); 
         }
-        return connection;
     }
 
     // =========================================================================

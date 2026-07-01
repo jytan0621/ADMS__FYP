@@ -21,10 +21,14 @@ import java.util.Map;
 
 public class InventoryDAO {
 
-    Connection connection = null;
-    String jdbcURL = "jdbc:mysql://localhost:3306/adms";
+    /*String jdbcURL = "jdbc:mysql://localhost:3306/adms";
     String jdbcUserName = "root";
-    String jdbcPassword = "admin"; 
+    String jdbcPassword = "admin";
+    */
+    
+    String jdbcURL = "jdbc:mysql://localhost:3306/s71172_adms";
+    String jdbcUserName = "s71172";
+    String jdbcPassword = "RynnTan0621@"; 
 
     // --- SQL QUERIES ---
     private static final String INSERT_ITEM_SQL = "INSERT INTO inventoryitem (ItemID, I_Name, Category, Unit, QuantityAvailable, Threshold) VALUES (?, ?, ?, ?, ?, ?)";

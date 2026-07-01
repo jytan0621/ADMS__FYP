@@ -12,14 +12,19 @@ import java.util.List;
 import java.util.Map;
 
 public class ShelterDAO {
-    private String jdbcURL = "jdbc:mysql://localhost:3306/adms";
-    private String jdbcUsername = "root";
-    private String jdbcPassword = "admin";
+    /*String jdbcURL = "jdbc:mysql://localhost:3306/adms";
+    String jdbcUserName = "root";
+    String jdbcPassword = "admin";
+    */
+    
+    String jdbcURL = "jdbc:mysql://localhost:3306/s71172_adms";
+    String jdbcUserName = "s71172";
+    String jdbcPassword = "RynnTan0621@";
 
     protected Connection getConnection() throws SQLException {
         try {
             Class.forName("com.mysql.cj.jdbc.Driver");
-            return DriverManager.getConnection(jdbcURL, jdbcUsername, jdbcPassword);
+            return DriverManager.getConnection(jdbcURL, jdbcUserName, jdbcPassword);
         } catch (ClassNotFoundException e) { throw new SQLException(e); }
     }
 

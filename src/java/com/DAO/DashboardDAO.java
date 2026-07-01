@@ -14,19 +14,22 @@ import java.util.TreeMap;
 
 public class DashboardDAO {
 
-    private final String URL = "jdbc:mysql://localhost:3306/adms"; 
-    private final String USER = "root";
-    private final String PASSWORD = "admin"; 
+    /*String jdbcURL = "jdbc:mysql://localhost:3306/adms";
+    String jdbcUserName = "root";
+    String jdbcPassword = "admin";
+    */
+    
+    String jdbcURL = "jdbc:mysql://localhost:3306/s71172_adms";
+    String jdbcUserName = "s71172";
+    String jdbcPassword = "RynnTan0621@"; 
 
-    private Connection getConnection() {
-        Connection con = null;
+    protected Connection getConnection() {
         try {
             Class.forName("com.mysql.cj.jdbc.Driver");
-            con = DriverManager.getConnection(URL, USER, PASSWORD);
-        } catch (ClassNotFoundException | SQLException e) {
-            e.printStackTrace();
+            return DriverManager.getConnection(jdbcURL, jdbcUserName, jdbcPassword);
+        } catch (Exception e) { 
+            throw new RuntimeException("DB Failed"); 
         }
-        return con;
     }
 
     // --- 1. SYSTEM STATS ---

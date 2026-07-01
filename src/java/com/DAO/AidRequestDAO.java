@@ -14,13 +14,13 @@ import java.util.Map;
 
 public class AidRequestDAO {
 
-    Connection connection = null;
-    String jdbcURL = "jdbc:mysql://localhost:3306/adms";
-    String jdbcUserName = "root";
-    String jdbcPassword = "admin";
+    // 💡 LIVE DATABASE CREDENTIALS
+    String jdbcURL = "jdbc:mysql://localhost:3306/s71172_adms";
+    String jdbcUserName = "s71172";
+    String jdbcPassword = "RynnTan0621@";
 
     // =========================================================================
-    //                                SQL QUERIES
+    //                                 SQL QUERIES
     // =========================================================================
     
     private static final String INSERT_REQUEST_SQL = "INSERT INTO aidrequest (RequestedBy, AR_Status, AR_DateSubmitted) VALUES (?, ?, ?)";
@@ -38,7 +38,6 @@ public class AidRequestDAO {
     private static final String DELETE_ITEMS_BY_REQUEST_ID = "DELETE FROM aidrequestitem WHERE RequestID = ?";
     private static final String APPROVE_REJECT_SQL = "UPDATE aidrequest SET AR_Status = ?, AR_ApprovedBy = ?, AR_ApprovedDate = ?, AR_ApprovalRemark = ? WHERE RequestID = ?";
 
-    // FIXED: Only counts reserved stock for the CURRENT disaster cycle to prevent "ghost" reservations from past years!
     private static final String GET_RESERVED_STOCK = 
         "SELECT SUM(ari.AR_QuantityRequested) AS TotalReserved " +
         "FROM aidrequestitem ari " +
@@ -53,14 +52,16 @@ public class AidRequestDAO {
     protected Connection getConnection() {
         try {
             Class.forName("com.mysql.cj.jdbc.Driver");
-            return DriverManager.getConnection(jdbcURL, jdbcUserName, jdbcPassword);
+            Connection conn = DriverManager.getConnection(jdbcURL, jdbcUserName, jdbcPassword);
+            // ENFORCE AUTO-COMMIT: Prevents the DB from silently rolling back inserts
+            conn.setAutoCommit(true); 
+            return conn;
         } catch (Exception e) {
             e.printStackTrace();
-            throw new RuntimeException("Database connection failed");
+            throw new RuntimeException("CRITICAL DB CONNECTION FAILED: " + e.getMessage());
         }
     }
 
-    // --- METHOD: Used by DashboardServlet to count global statistics ---
     public int countRequestsByStatus(String status) {
         int count = 0;
         String sql = "SELECT COUNT(*) AS total FROM aidrequest WHERE AR_Status = ?";
@@ -118,7 +119,10 @@ public class AidRequestDAO {
             ps.setString(2, "Pending"); 
             ps.setTimestamp(3, new java.sql.Timestamp(new java.util.Date().getTime()));
             ps.executeUpdate();
-        } catch (SQLException e) { printSQLException(e); return null; }
+        } catch (SQLException e) { 
+            // FORCE SYSTEM CRASH TO REVEAL ERROR
+            throw new RuntimeException("MAIN REQUEST INSERT FAILED: " + e.getMessage()); 
+        }
 
         String fetchIdSQL = "SELECT RequestID FROM aidrequest WHERE RequestedBy = ? ORDER BY RequestID DESC LIMIT 1";
         try (Connection connection = getConnection();
@@ -127,7 +131,14 @@ public class AidRequestDAO {
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) generatedID = rs.getString("RequestID");
             }
-        } catch (SQLException e) { printSQLException(e); }
+        } catch (SQLException e) { 
+            throw new RuntimeException("FETCHING GENERATED ID FAILED: " + e.getMessage()); 
+        }
+        
+        if (generatedID == null) {
+            throw new RuntimeException("CRITICAL ERROR: Main request seemed to insert, but ID could not be retrieved.");
+        }
+        
         return generatedID; 
     }
 
@@ -138,7 +149,10 @@ public class AidRequestDAO {
             ps.setString(2, item.getItemID());    
             ps.setInt(3, item.getArQuantityRequested());
             ps.executeUpdate();
-        } catch (SQLException e) { printSQLException(e); }
+        } catch (SQLException e) { 
+            // FORMER SILENT FAILURE FIXED HERE
+            throw new RuntimeException("ITEM INSERT FAILED FOR ITEM ID " + item.getItemID() + ": " + e.getMessage()); 
+        }
     }
 
     public List<AidRequestItem> selectItemsByRequestID(String requestID) {
@@ -185,7 +199,6 @@ public class AidRequestDAO {
     public List<AidRequest> selectAllRequests(String userID, String role, String statusFilter) {
         List<AidRequest> requests = new ArrayList<>();
         
-        // 1. Base Query with the Activation Date filter built-in
         StringBuilder sql = new StringBuilder(
             "SELECT ar.* FROM aidrequest ar " +
             "LEFT JOIN userprofile u ON ar.RequestedBy = u.UserID " +
@@ -195,7 +208,6 @@ public class AidRequestDAO {
         
         List<Object> parameters = new ArrayList<>();
 
-        // 2. Role Restriction
         boolean isAdminOrApprover = "Admin".equalsIgnoreCase(role) || "Approval Officer".equalsIgnoreCase(role) || "Manager".equalsIgnoreCase(role);
         
         if (!isAdminOrApprover) {
@@ -203,16 +215,13 @@ public class AidRequestDAO {
             parameters.add(userID);
         }
 
-        // 3. Status Filtering
         if (statusFilter != null && !statusFilter.trim().isEmpty() && !statusFilter.equals("All")) {
             sql.append(" AND ar.AR_Status = ?");
             parameters.add(statusFilter);
         }
 
-        // 4. Ordering
         sql.append(" ORDER BY ar.AR_DateSubmitted DESC");
 
-        // 5. Execution
         try (Connection connection = getConnection();
              PreparedStatement ps = connection.prepareStatement(sql.toString())) {
             

@@ -5,9 +5,14 @@ import java.util.*;
 
 public class BeneficiaryAnalysisDAO {
 
-    String jdbcURL = "jdbc:mysql://localhost:3306/adms";
+    /*String jdbcURL = "jdbc:mysql://localhost:3306/adms";
     String jdbcUserName = "root";
     String jdbcPassword = "admin";
+    */
+    
+    String jdbcURL = "jdbc:mysql://localhost:3306/s71172_adms";
+    String jdbcUserName = "s71172";
+    String jdbcPassword = "RynnTan0621@";
 
     protected Connection getConnection() {
         try {

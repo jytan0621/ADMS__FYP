@@ -166,8 +166,8 @@
         
         <div class="page-header">
             <h2>User List</h2>
-            <%-- FIXED: Route to the servlet "new", not the JSP directly! --%>
-            <a href="new" class="btn-add">+ Add New User</a>
+            <%-- UPDATED: Added context path --%>
+            <a href="${pageContext.request.contextPath}/new" class="btn-add">+ Add New User</a>
         </div>
 
         <div class="table-card">
@@ -187,7 +187,6 @@
                 </thead>
                 <tbody>
                     <% 
-                       // FIXED: Declared the count variable so the page doesn't crash!
                        int count = 1;
                        
                        if (userList.isEmpty()) { 
@@ -199,7 +198,6 @@
                                boolean isActive = "Active".equalsIgnoreCase(u.getStatus());
                     %>
                         <tr>
-                            <%-- FIXED: Removed the extra ">" symbol --%>
                             <td style="font-weight:bold; color:#64748b;"><%= count++ %></td>
                             <td style="font-weight:600;"><%= u.getUserName() %></td>
                             <td><%= u.getEmail() %></td>
@@ -216,17 +214,19 @@
                             <td style="color:#64748b; font-size:13px;"><%= u.getCreatedAt() %></td>
                             
                             <td>
-                                <%-- FIXED: Route to the servlet "editadmin", not the JSP directly! --%>
-                                <a href="editadmin?id=<%= u.getUserID() %>" class="action-link edit-link">Edit</a>
+                                <%-- UPDATED: Added context path --%>
+                                <a href="${pageContext.request.contextPath}/editadmin?id=<%= u.getUserID() %>" class="action-link edit-link">Edit</a>
 
                                 <% if (isActive) { %>
-                                    <a href="UpdateStatusServlet?id=<%= u.getUserID() %>&newStatus=Inactive" 
+                                    <%-- UPDATED: Added context path --%>
+                                    <a href="${pageContext.request.contextPath}/UpdateStatusServlet?id=<%= u.getUserID() %>&newStatus=Inactive" 
                                        class="action-link deactivate-link"
                                        onclick="return confirm('Disable this user account?')">
                                        Deactivate
                                     </a>
                                 <% } else { %>
-                                    <a href="UpdateStatusServlet?id=<%= u.getUserID() %>&newStatus=Active" 
+                                    <%-- UPDATED: Added context path --%>
+                                    <a href="${pageContext.request.contextPath}/UpdateStatusServlet?id=<%= u.getUserID() %>&newStatus=Active" 
                                        class="action-link activate-link"
                                        onclick="return confirm('Re-activate this user account?')">
                                        Activate

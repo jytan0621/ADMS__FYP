@@ -11,9 +11,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class BeneficiaryDAO {
-    String jdbcURL = "jdbc:mysql://localhost:3306/adms";
+    /*String jdbcURL = "jdbc:mysql://localhost:3306/adms";
     String jdbcUserName = "root";
     String jdbcPassword = "admin";
+    */
+    
+    String jdbcURL = "jdbc:mysql://localhost:3306/s71172_adms";
+    String jdbcUserName = "s71172";
+    String jdbcPassword = "RynnTan0621@";
     
     // ================= SQL QUERIES FOR BENEFICIARY =================
     private static final String INSERT_BENEFICIARY_SQL = "INSERT INTO beneficiary" +
@@ -127,6 +132,54 @@ public class BeneficiaryDAO {
             while (rs.next()) { tentIDs.add(rs.getString("TentID")); }
         }
         return tentIDs;
+    }
+
+    /**
+     * NEW METHOD: Assigns a single beneficiary to a tent based on gender (IC Last Digit).
+     * Odd IC = Male (1) | Even IC = Female (0).
+     * It ensures the tent does NOT contain families or singles of the opposite gender.
+     */
+    public String getAvailableTentForSingle(String shelterID, String icNumber) throws SQLException {
+        if (icNumber == null || icNumber.isEmpty()) return null;
+
+        // Clean IC by removing hyphens and spaces
+        String cleanIC = icNumber.replace("-", "").trim();
+        if (cleanIC.isEmpty()) return null;
+
+        // Get the last character. If somehow it's not a digit, default to 0 (Even) to prevent crashes
+        char lastChar = cleanIC.charAt(cleanIC.length() - 1);
+        int lastDigit = Character.isDigit(lastChar) ? Character.getNumericValue(lastChar) : 0;
+        
+        // Calculate gender modulo: 1 for Male (Odd), 0 for Female (Even)
+        int genderMod = lastDigit % 2; 
+
+        // SQL Explanation:
+        // 1. Get an available tent in this shelter.
+        // 2. Ensure NO families (HouseholdSize > 1) are in this tent.
+        // 3. Ensure NO singles of the OPPOSITE gender are in this tent.
+        // 4. Fill partially occupied tents first before opening a completely empty one.
+        String sql = "SELECT t.TentID FROM tents t " +
+                     "WHERE t.ShelterID = ? AND t.Status = 'Available' " +
+                     "AND NOT EXISTS ( " +
+                     "    SELECT 1 FROM beneficiary b " +
+                     "    WHERE b.TentID = t.TentID AND b.HouseholdSize > 1 AND b.B_Status = 'Active' " +
+                     ") " +
+                     "AND NOT EXISTS ( " +
+                     "    SELECT 1 FROM beneficiary b " +
+                     "    WHERE b.TentID = t.TentID AND b.HouseholdSize = 1 AND b.B_Status = 'Active' " +
+                     "    AND MOD(CAST(RIGHT(REPLACE(b.B_ICNumber, '-', ''), 1) AS UNSIGNED), 2) != ? " +
+                     ") " +
+                     "ORDER BY t.current_occupancy DESC, t.TentNumber ASC LIMIT 1";
+
+        try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, shelterID);
+            ps.setInt(2, genderMod);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                return rs.getString("TentID");
+            }
+        }
+        return null; // Return null if no suitable tent is found (shelter full)
     }
 
     public void incrementTentOccupancy(String tentID) throws SQLException {

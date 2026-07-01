@@ -8,9 +8,16 @@ import java.util.List;
 
 public class RestockDAO {
 
-    private String jdbcURL = "jdbc:mysql://localhost:3306/adms";
-    private String jdbcUsername = "root";
-    String jdbcPassword = "admin"; 
+    /*String jdbcURL = "jdbc:mysql://localhost:3306/adms";
+    String jdbcUserName = "root";
+    String jdbcPassword = "admin";
+    */
+    
+    String jdbcURL = "jdbc:mysql://localhost:3306/s71172_adms";
+    String jdbcUserName = "s71172";
+    String jdbcPassword = "RynnTan0621@"; 
+
+    
 
     public RestockDAO() {}
 
@@ -18,7 +25,7 @@ public class RestockDAO {
         Connection connection = null;
         try {
             Class.forName("com.mysql.cj.jdbc.Driver");
-            connection = DriverManager.getConnection(jdbcURL, jdbcUsername, jdbcPassword);
+            connection = DriverManager.getConnection(jdbcURL, jdbcUserName, jdbcPassword);
         } catch (SQLException | ClassNotFoundException e) {
             e.printStackTrace();
         }
